@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { Input } from "../ui/input";
-import { Button } from "../ui/button";
+import { Input } from "../../ui/input";
+import { Button } from "../../ui/button";
 import { Dispatch, SetStateAction, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mode } from "@/types/types";

@@ -18,6 +18,8 @@ interface GameContextType {
   getCurrentQuestion: () => string | null;
   getCurrentTurnPlayer: () => Player | null;
   getAllQuestions: () => string[];
+  answeredQuestions: number[];
+  currentQuestionIndex: number | null;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -30,6 +32,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
+  const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<
+    number | null
+  >(null);
 
   const generateRoomCode = (): string => {
     return nanoid(6).toUpperCase();
@@ -57,6 +63,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
     rooms.set(newRoom.code, newRoom);
     setRoom(newRoom);
     setCurrentPlayer(player);
+    setAnsweredQuestions([]);
+    setCurrentQuestionIndex(null);
   };
 
   const joinRoom = (roomCode: string, playerName: string): boolean => {
@@ -111,30 +119,60 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
     return [...packQuestions, ...room.customQuestions];
   };
 
+  const getRandomUnansweredIndex = (): number | null => {
+    const allQuestions = getAllQuestions();
+    const unansweredIndices = allQuestions
+      .map((_, index) => index)
+      .filter((index) => !answeredQuestions.includes(index));
+
+    if (unansweredIndices.length === 0) return null;
+
+    const randomIndex = Math.floor(Math.random() * unansweredIndices.length);
+    return unansweredIndices[randomIndex];
+  };
+
   const startGame = () => {
     if (!room || !room.selectedPack) return;
     const updatedRoom = { ...room, isStarted: true };
     rooms.set(room.code, updatedRoom);
     setRoom(updatedRoom);
+    setAnsweredQuestions([]);
+
+    // Pick first random question
+    const allQuestions = getAllQuestions();
+    if (allQuestions.length > 0) {
+      const randomIndex = Math.floor(Math.random() * allQuestions.length);
+      setCurrentQuestionIndex(randomIndex);
+    }
   };
 
   const nextQuestion = () => {
-    if (!room) return;
+    if (!room || currentQuestionIndex === null) return;
+
+    // Mark current question as answered
+    const newAnswered = [...answeredQuestions, currentQuestionIndex];
+    setAnsweredQuestions(newAnswered);
 
     const allQuestions = getAllQuestions();
-    const nextQuestionIndex = room.currentQuestionIndex + 1;
+    const unansweredIndices = allQuestions
+      .map((_, index) => index)
+      .filter((index) => !newAnswered.includes(index));
 
-    if (nextQuestionIndex >= allQuestions.length) {
+    if (unansweredIndices.length === 0) {
       const updatedRoom = { ...room, isFinished: true };
       rooms.set(room.code, updatedRoom);
       setRoom(updatedRoom);
       return;
     }
 
+    // Pick random unanswered question
+    const randomIndex = Math.floor(Math.random() * unansweredIndices.length);
+    setCurrentQuestionIndex(unansweredIndices[randomIndex]);
+
+    // Move to next player
     const nextPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
     const updatedRoom = {
       ...room,
-      currentQuestionIndex: nextQuestionIndex,
       currentPlayerIndex: nextPlayerIndex,
     };
     rooms.set(room.code, updatedRoom);
@@ -142,9 +180,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const getCurrentQuestion = (): string | null => {
-    if (!room) return null;
+    if (!room || currentQuestionIndex === null) return null;
     const allQuestions = getAllQuestions();
-    return allQuestions[room.currentQuestionIndex] || null;
+    return allQuestions[currentQuestionIndex] || null;
   };
 
   const getCurrentTurnPlayer = (): Player | null => {
@@ -163,6 +201,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
     };
     rooms.set(room.code, updatedRoom);
     setRoom(updatedRoom);
+    setAnsweredQuestions([]);
+    setCurrentQuestionIndex(null);
   };
 
   return (
@@ -181,6 +221,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
         getCurrentQuestion,
         getCurrentTurnPlayer,
         getAllQuestions,
+        answeredQuestions,
+        currentQuestionIndex,
       }}
     >
       {children}

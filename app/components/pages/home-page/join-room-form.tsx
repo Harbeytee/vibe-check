@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
-import { Input } from "../ui/input";
+import { Input } from "../../ui/input";
 import { Scanner } from "@yudiel/react-qr-scanner";
-import { Button } from "../ui/button";
+import { Button } from "../../ui/button";
 import { Mode } from "@/types/types";
 import JoinMethodToggle from "./join-method-toggle";
 import useHandleJoinRoom from "./hooks/useHandleJoinRoom";
