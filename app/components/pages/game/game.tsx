@@ -1,73 +1,92 @@
 "use client";
 import { gamePacks } from "@/data/packs";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import PlayerList from "../lobby/player-list";
 import FinishedGame from "./finished-game";
 import { useGame } from "@/context/game-context";
-import ActionButtons from "./action-buttons";
+import NextButton from "./next-button";
 import CardSection from "./card-section";
 import Header from "./header";
+import TurnIndicator from "./turn-indicator";
 
 export default function Game() {
   const router = useRouter();
   const {
     room,
-    getCurrentQuestion,
     getCurrentTurnPlayer,
     nextQuestion,
-    resetGame,
-    getAllQuestions,
-    answeredQuestions,
-    currentQuestionIndex,
+
+    socket,
+    player,
   } = useGame();
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const { code } = useParams();
 
   useEffect(() => {
-    if (!room || !room.isStarted) {
-      router.push("/");
+    if (room) {
+      if (!room.isStarted) {
+        router.push(`/lobby/${room.code}`);
+      }
+    } else {
+      if (code) {
+        router.push(`/?${code}`);
+      } else router.push(`/?${code}`);
     }
   }, [room, router]);
 
   if (!room) return null;
 
-  const currentQuestion = getCurrentQuestion();
   const currentTurnPlayer = getCurrentTurnPlayer();
   const selectedPack = gamePacks.find((p) => p.id === room.selectedPack);
-  const totalQuestions = getAllQuestions().length;
-  const answeredCount = answeredQuestions.length;
-  const progress = ((answeredCount + 1) / totalQuestions) * 100;
+
+  const answeredCount = room.answeredQuestions.length;
+  const progress = ((answeredCount + 1) / room.totalQuestions) * 100;
+  console.log(currentTurnPlayer);
+
+  // const handleFlip = () => {
+  //   if (!isFlipped) {
+  //     setIsFlipped(true);
+  //   }
+  // };
+
+  // const handleNext = () => {
+  //   setIsTransitioning(true);
+  //   setIsFlipped(false);
+
+  //   setTimeout(() => {
+  //     nextQuestion();
+  //     setIsTransitioning(false);
+  //   }, 400);
+  // }
+
+  const canFlip = player?.id == room.players[room.currentPlayerIndex].id;
 
   const handleFlip = () => {
-    if (!isFlipped) {
-      setIsFlipped(true);
+    // Only the current player should be allowed to flip the card
+    if (!canFlip) return;
+
+    if (!room.isFlipped) {
+      socket?.emit("flip_card", { roomCode: room.code });
     }
   };
 
   const handleNext = () => {
-    setIsTransitioning(true);
-    setIsFlipped(false);
+    // Only the host should be allowed to click next
+    if (!canFlip) return;
 
-    setTimeout(() => {
-      nextQuestion();
-      setIsTransitioning(false);
-    }, 400);
-  };
-
-  const handlePlayAgain = () => {
-    resetGame();
-    router.push("/lobby");
+    // We just call the function, the server handles the
+    // timing of isTransitioning and isFlipped
+    nextQuestion();
   };
 
   // Game Finished Screen
   if (room.isFinished) {
     return (
       <FinishedGame
-        handlePlayAgain={handlePlayAgain}
         players={room.players}
-        totalQuestions={totalQuestions}
+        totalQuestions={room.totalQuestions}
       />
     );
   }
@@ -79,38 +98,14 @@ export default function Game() {
         selectedPack={selectedPack}
         progress={progress}
         answeredCount={answeredCount}
-        totalQuestions={totalQuestions}
+        totalQuestions={room.totalQuestions}
       />
 
-      {/* Current Turn Player */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="text-center mb-6"
-      >
-        <p className="text-muted-foreground text-sm mb-2">It's your turn</p>
-        <motion.div
-          key={currentTurnPlayer?.id}
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary/20 border-2 border-primary"
-        >
-          <span className="text-2xl">👤</span>
-          <span className="font-display font-bold text-xl text-primary">
-            {currentTurnPlayer?.name}
-          </span>
-        </motion.div>
-      </motion.div>
+      <TurnIndicator canFlip={canFlip} currentTurnPlayer={currentTurnPlayer} />
 
-      <CardSection
-        isTransitioning={isTransitioning}
-        currentQuestion={currentQuestion}
-        currentQuestionIndex={currentQuestionIndex}
-        isFlipped={isFlipped}
-        packColor={selectedPack?.color}
-        handleFlip={handleFlip}
-      />
-      <ActionButtons isFlipped={isFlipped} handleNext={handleNext} />
+      <CardSection handleFlip={handleFlip} canFlip={canFlip} room={room} />
+
+      {room.isFlipped && canFlip && <NextButton handleNext={handleNext} />}
 
       {/* Player Order */}
       <motion.div

@@ -1,57 +1,13 @@
-// import { motion } from "framer-motion";
-
-// export default function CardBack({ packColor }: { packColor?: string }) {
-//   return (
-//     <div
-//       className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${packColor} shadow-2xl flex flex-col items-center justify-center p-8`}
-//       style={{
-//         backfaceVisibility: "hidden",
-//         WebkitBackfaceVisibility: "hidden",
-//       }}
-//     >
-//       <div className="absolute inset-0 rounded-3xl pattern-dots opacity-20" />
-//       <motion.div
-//         className="relative z-10"
-//         animate={{ scale: [1, 1.05, 1] }}
-//         transition={{
-//           duration: 2,
-//           repeat: Infinity,
-//           ease: "easeInOut",
-//         }}
-//       >
-//         <span className="text-8xl">🃏</span>
-//       </motion.div>
-//       <p className="text-foreground/90 font-display font-bold text-xl mt-6 text-center">
-//         Tap to reveal
-//       </p>
-//       <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2">
-//         {[...Array(3)].map((_, i) => (
-//           <motion.div
-//             key={i}
-//             className="w-2 h-2 rounded-full bg-foreground/30"
-//             animate={{ opacity: [0.3, 1, 0.3] }}
-//             transition={{
-//               duration: 1.5,
-//               repeat: Infinity,
-//               delay: i * 0.2,
-//             }}
-//           />
-//         ))}
-//       </div>
-//     </div>
-//   );
-// }
-
-import React from "react";
 import { motion } from "framer-motion";
 import { Activity } from "lucide-react";
 
-/**
- * CardBack Component
- * A premium card back design featuring high-tech scanning animations,
- * breathing visual accents, and un-collapsed gradient typography.
- */
-const CardBack = ({ packColor }: { packColor?: string }) => {
+const CardBack = ({
+  canFlip,
+  currentPlayer,
+}: {
+  canFlip: boolean;
+  currentPlayer: string;
+}) => {
   return (
     <motion.div
       // className="relative w-80 h-[480px] rounded-[2rem] overflow-hidden border shadow-2xl flex flex-col items-center justify-center p-8 bg-gradient-to-br from-neutral-900 via-neutral-950 to-black"
@@ -120,8 +76,9 @@ const CardBack = ({ packColor }: { packColor?: string }) => {
           className="text-[10px] font-bold tracking-[0.4em] uppercase animate-pulse"
           style={{ color: "var(--text-muted)" }}
         >
-          Tap to reveal
+          {canFlip ? "Tap to reveal" : `${currentPlayer} is revealing...`}
         </p>
+
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
             <motion.div

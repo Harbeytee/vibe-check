@@ -12,7 +12,7 @@ export default function ShareOptionsPopover({
 }: {
   roomCode: string;
 }) {
-  const shareUrl = `${window.location.origin}/join/${roomCode}`;
+  const shareUrl = `${window.location.origin}/?${roomCode}`;
 
   return (
     <Popover>

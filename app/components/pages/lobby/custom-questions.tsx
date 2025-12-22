@@ -5,7 +5,7 @@ import { Input } from "../../ui/input";
 import { MessageSquare, Plus, X } from "lucide-react";
 
 interface CustomQuestionsProps {
-  questions: string[];
+  questions: { id: number; text: string }[];
   onAdd: (question: string) => void;
   onRemove: (index: number) => void;
 }
@@ -73,19 +73,21 @@ export default function CustomQuestions({
 
       <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
         <AnimatePresence>
-          {questions.map((question, index) => (
+          {questions.map((question) => (
             <motion.div
-              key={index}
+              key={question.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               className="flex items-center gap-2 p-3 bg-card/50 rounded-lg border border-border group"
             >
-              <span className="flex-1 text-sm text-foreground">{question}</span>
+              <span className="flex-1 text-sm text-foreground">
+                {question.text}
+              </span>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onRemove(index)}
+                onClick={() => onRemove(question.id)}
                 className="opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />

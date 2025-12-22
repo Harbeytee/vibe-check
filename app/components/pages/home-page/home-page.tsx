@@ -6,9 +6,13 @@ import { Mode } from "@/types/types";
 import ModeSelection from "./mode-selection";
 import CreateRoomForm from "./create-room-form";
 import JoinRoomForm from "./join-room-form";
+import { useSearchParams } from "next/navigation";
 
 const HomePage: React.FC = () => {
-  const [mode, setMode] = useState<Mode>("select");
+  const searchParams = useSearchParams();
+  const roomCode = searchParams.keys().next().value;
+
+  const [mode, setMode] = useState<Mode>(roomCode ? "join" : "select");
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">

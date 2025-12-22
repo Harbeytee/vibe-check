@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 import { Player } from "@/types/interface";
 
 export default function FinishedGame({
-  handlePlayAgain,
   players,
   totalQuestions,
 }: {
-  handlePlayAgain: () => void;
   players: Player[];
   totalQuestions: number;
 }) {
@@ -37,21 +35,9 @@ export default function FinishedGame({
           You answered all {totalQuestions} questions!
         </p>
 
-        {/* <div className="glass-effect rounded-2xl p-6 mb-8">
-            <h2 className="font-display font-bold text-lg mb-4">Players</h2> */}
         <PlayerList players={players} />
-        {/* </div> */}
 
         <div className="flex flex-col sm:flex-row gap-4">
-          <Button
-            variant="glow"
-            size="lg"
-            className="flex-1"
-            onClick={handlePlayAgain}
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Play Again
-          </Button>
           <Button
             variant="outline"
             size="lg"

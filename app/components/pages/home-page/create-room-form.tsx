@@ -24,7 +24,6 @@ export default function CreateRoomForm({
       return;
     }
     createRoom(playerName.trim());
-    router.push("/lobby");
   };
 
   if (mode === "create")

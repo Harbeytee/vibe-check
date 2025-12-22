@@ -1,7 +1,9 @@
 export default function CardFront({
   currentQuestion,
+  canFlip,
 }: {
   currentQuestion: string | null;
+  canFlip: boolean;
 }) {
   return (
     <div
@@ -22,9 +24,11 @@ export default function CardFront({
       <p className="text-foreground font-display font-semibold text-xl md:text-2xl text-center leading-relaxed">
         {currentQuestion}
       </p>
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-        <p className="text-muted-foreground text-sm">Answer honestly!</p>
-      </div>
+      {canFlip && (
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+          <p className="text-muted-foreground text-sm">Answer honestly!</p>
+        </div>
+      )}
     </div>
   );
 }

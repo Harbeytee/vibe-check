@@ -1,17 +1,19 @@
 import { useGame } from "@/context/game-context";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function useHandleJoinRoom() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const existingCode = searchParams.keys().next().value;
   const { joinRoom } = useGame();
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
   const [joinMethod, setJoinMethod] = useState<"code" | "scan">("code");
   const [playerName, setPlayerName] = useState("");
-  const [roomCode, setRoomCode] = useState("");
+  const [roomCode, setRoomCode] = useState(existingCode || "");
 
-  const handleJoin = (code?: string) => {
+  const handleJoin = async (code?: string) => {
     const codeToUse = code || roomCode;
     if (!playerName.trim()) {
       setError("Please enter your name");
@@ -21,12 +23,13 @@ export default function useHandleJoinRoom() {
       setError("Please enter a room code");
       return;
     }
-    const success = joinRoom(codeToUse.trim(), playerName.trim());
-    if (success) {
-      router.push("/lobby");
-    } else {
-      setError("Room not found or game already started");
-    }
+    // const success =
+    joinRoom(codeToUse.trim(), playerName.trim());
+    // if (success) {
+    //   router.push(`/lobby${codeToUse}/`);
+    // } else {
+    //   setError("Room not found or game already started");
+    // }
   };
 
   const handleScan = (result: any) => {

@@ -1,188 +1,127 @@
 "use client";
-import { createContext, useContext, useState, ReactNode } from "react";
-import { GameRoom, Player, PackType } from "@/types/interface";
-import { nanoid } from "nanoid";
-import { gamePacks } from "@/data/packs";
-
-interface GameContextType {
-  room: GameRoom | null;
-  currentPlayer: Player | null;
-  createRoom: (playerName: string) => void;
-  joinRoom: (roomCode: string, playerName: string) => boolean;
-  selectPack: (packId: PackType) => void;
-  addCustomQuestion: (question: string) => void;
-  removeCustomQuestion: (index: number) => void;
-  startGame: () => void;
-  nextQuestion: () => void;
-  resetGame: () => void;
-  getCurrentQuestion: () => string | null;
-  getCurrentTurnPlayer: () => Player | null;
-  getAllQuestions: () => string[];
-  answeredQuestions: number[];
-  currentQuestionIndex: number | null;
-}
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { io, Socket } from "socket.io-client";
+import { useRouter } from "next/navigation";
+import { GameRoom, Player, GameContextType } from "@/types/interface";
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-// Simple in-memory storage for demo (in production, use Supabase)
-const rooms: Map<string, GameRoom> = new Map();
-
-export const GameProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const GameProvider = ({ children }: { children: ReactNode }) => {
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [room, setRoom] = useState<GameRoom | null>(null);
-  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
-  const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<
-    number | null
-  >(null);
+  const [player, setPlayer] = useState<Player | null>(null);
+  const router = useRouter();
 
-  const generateRoomCode = (): string => {
-    return nanoid(6).toUpperCase();
-  };
+  useEffect(() => {
+    const newSocket = io(
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000"
+    );
+    setSocket(newSocket);
+
+    // --- LISTENERS ---
+
+    newSocket.on("room_updated", (updatedRoom: any /*GameRoom*/) => {
+      setRoom(updatedRoom);
+      const myData = updatedRoom.players.find(
+        (p: any) => p.id === newSocket.id
+      );
+      if (myData) setPlayer(myData);
+    });
+
+    // Native Alert for Host Migration
+    newSocket.on("new_host_toast", ({ name }: { name: string }) => {
+      alert(`${name} is now the host!`);
+    });
+
+    // Native Alert for Errors (The logic we added to the backend)
+    newSocket.on("error", (data: { message: string }) => {
+      alert(`Error: ${data.message}`);
+    });
+
+    // Native Alert for Room Deletion / Game Over
+    newSocket.on("room_deleted", (data: { message: string }) => {
+      alert(data.message);
+      setRoom(null);
+      router.push("/");
+    });
+
+    newSocket.on("game_started", (startedRoom: GameRoom) => {
+      setRoom(startedRoom);
+      router.push(`/game/${room?.code}`);
+    });
+
+    return () => {
+      newSocket.off("room_updated");
+      newSocket.off("new_host_toast");
+      newSocket.off("error");
+      newSocket.off("room_deleted");
+      newSocket.off("game_started");
+      newSocket.disconnect();
+    };
+  }, [router]);
+
+  // --- ACTIONS ---
 
   const createRoom = (playerName: string) => {
-    const player: Player = {
-      id: nanoid(),
-      name: playerName,
-      isHost: true,
-    };
+    if (!socket?.connected) return alert("You are offline. Please wait.");
 
-    const newRoom: GameRoom = {
-      id: nanoid(),
-      code: generateRoomCode(),
-      players: [player],
-      selectedPack: null,
-      customQuestions: [],
-      currentPlayerIndex: 0,
-      currentQuestionIndex: 0,
-      isStarted: false,
-      isFinished: false,
-    };
-
-    rooms.set(newRoom.code, newRoom);
-    setRoom(newRoom);
-    setCurrentPlayer(player);
-    setAnsweredQuestions([]);
-    setCurrentQuestionIndex(null);
+    socket.emit("create_room", { playerName }, (res: any) => {
+      if (res.success) {
+        setRoom(res.room);
+        setPlayer(res.player);
+        console.log("success");
+        router.push(`/lobby/${res.room.code}`);
+      } else {
+        alert(res.message);
+      }
+    });
   };
 
-  const joinRoom = (roomCode: string, playerName: string): boolean => {
-    const existingRoom = rooms.get(roomCode.toUpperCase());
-    if (!existingRoom || existingRoom.isStarted) {
-      return false;
-    }
+  const joinRoom = (roomCode: string, playerName: string) => {
+    if (!socket?.connected) return alert("Trying to reconnect...");
 
-    const player: Player = {
-      id: nanoid(),
-      name: playerName,
-      isHost: false,
-    };
-
-    existingRoom.players.push(player);
-    rooms.set(roomCode, existingRoom);
-    setRoom({ ...existingRoom });
-    setCurrentPlayer(player);
-    return true;
+    socket.emit("join_room", { roomCode, playerName }, (res: any) => {
+      if (res.success) {
+        setRoom(res.room);
+        setPlayer(res.player);
+        router.push(`/lobby/${res.room.code}`);
+      } else {
+        alert(res.message);
+      }
+    });
   };
 
-  const selectPack = (packId: PackType) => {
-    if (!room) return;
-    const updatedRoom = { ...room, selectedPack: packId };
-    rooms.set(room.code, updatedRoom);
-    setRoom(updatedRoom);
+  const selectPack = (packId: string) => {
+    socket?.emit("select_pack", { roomCode: room?.code, packId });
   };
 
-  const addCustomQuestion = (question: string) => {
-    if (!room) return;
-    const updatedRoom = {
-      ...room,
-      customQuestions: [...room.customQuestions, question],
-    };
-    rooms.set(room.code, updatedRoom);
-    setRoom(updatedRoom);
-  };
-
-  const removeCustomQuestion = (index: number) => {
-    if (!room) return;
-    const updatedQuestions = [...room.customQuestions];
-    updatedQuestions.splice(index, 1);
-    const updatedRoom = { ...room, customQuestions: updatedQuestions };
-    rooms.set(room.code, updatedRoom);
-    setRoom(updatedRoom);
-  };
-
-  const getAllQuestions = (): string[] => {
-    if (!room || !room.selectedPack) return [];
-    const pack = gamePacks.find((p) => p.id === room.selectedPack);
-    const packQuestions = pack?.questions || [];
-    return [...packQuestions, ...room.customQuestions];
-  };
-
-  const getRandomUnansweredIndex = (): number | null => {
-    const allQuestions = getAllQuestions();
-    const unansweredIndices = allQuestions
-      .map((_, index) => index)
-      .filter((index) => !answeredQuestions.includes(index));
-
-    if (unansweredIndices.length === 0) return null;
-
-    const randomIndex = Math.floor(Math.random() * unansweredIndices.length);
-    return unansweredIndices[randomIndex];
-  };
-
-  const startGame = () => {
-    if (!room || !room.selectedPack) return;
-    const updatedRoom = { ...room, isStarted: true };
-    rooms.set(room.code, updatedRoom);
-    setRoom(updatedRoom);
-    setAnsweredQuestions([]);
-
-    // Pick first random question
-    const allQuestions = getAllQuestions();
-    if (allQuestions.length > 0) {
-      const randomIndex = Math.floor(Math.random() * allQuestions.length);
-      setCurrentQuestionIndex(randomIndex);
-    }
+  const startGame = (callback: (res: any) => void) => {
+    socket?.emit("start_game", { roomCode: room?.code }, callback);
   };
 
   const nextQuestion = () => {
-    if (!room || currentQuestionIndex === null) return;
-
-    // Mark current question as answered
-    const newAnswered = [...answeredQuestions, currentQuestionIndex];
-    setAnsweredQuestions(newAnswered);
-
-    const allQuestions = getAllQuestions();
-    const unansweredIndices = allQuestions
-      .map((_, index) => index)
-      .filter((index) => !newAnswered.includes(index));
-
-    if (unansweredIndices.length === 0) {
-      const updatedRoom = { ...room, isFinished: true };
-      rooms.set(room.code, updatedRoom);
-      setRoom(updatedRoom);
-      return;
-    }
-
-    // Pick random unanswered question
-    const randomIndex = Math.floor(Math.random() * unansweredIndices.length);
-    setCurrentQuestionIndex(unansweredIndices[randomIndex]);
-
-    // Move to next player
-    const nextPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
-    const updatedRoom = {
-      ...room,
-      currentPlayerIndex: nextPlayerIndex,
-    };
-    rooms.set(room.code, updatedRoom);
-    setRoom(updatedRoom);
+    socket?.emit("next_question", { roomCode: room?.code });
   };
 
-  const getCurrentQuestion = (): string | null => {
-    if (!room || currentQuestionIndex === null) return null;
-    const allQuestions = getAllQuestions();
-    return allQuestions[currentQuestionIndex] || null;
+  // const resetGame = () => {
+  //   socket?.emit("reset_game", { roomCode: room?.code });
+  // };
+
+  const addCustomQuestion = (question: string) => {
+    socket?.emit("add_custom_questio", { roomCode: room?.code, question });
+  };
+
+  const removeCustomQuestion = (questionId: number) => {
+    socket?.emit("delete_custom_question", {
+      roomCode: room?.code,
+      questionId,
+    });
   };
 
   const getCurrentTurnPlayer = (): Player | null => {
@@ -190,26 +129,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
     return room.players[room.currentPlayerIndex] || null;
   };
 
-  const resetGame = () => {
-    if (!room) return;
-    const updatedRoom = {
-      ...room,
-      currentPlayerIndex: 0,
-      currentQuestionIndex: 0,
-      isStarted: false,
-      isFinished: false,
-    };
-    rooms.set(room.code, updatedRoom);
-    setRoom(updatedRoom);
-    setAnsweredQuestions([]);
-    setCurrentQuestionIndex(null);
-  };
-
   return (
     <GameContext.Provider
       value={{
-        room,
-        currentPlayer,
+        currentPlayer: getCurrentTurnPlayer(),
         createRoom,
         joinRoom,
         selectPack,
@@ -217,12 +140,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
         removeCustomQuestion,
         startGame,
         nextQuestion,
-        resetGame,
-        getCurrentQuestion,
+
         getCurrentTurnPlayer,
-        getAllQuestions,
-        answeredQuestions,
-        currentQuestionIndex,
+        room,
+        socket,
+        player,
       }}
     >
       {children}
@@ -232,8 +154,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
 
 export const useGame = () => {
   const context = useContext(GameContext);
-  if (context === undefined) {
-    throw new Error("useGame must be used within a GameProvider");
-  }
+  if (!context) throw new Error("useGame error");
   return context;
 };

@@ -8,40 +8,64 @@ import PlayerList from "./player-list";
 import CustomQuestions from "./custom-questions";
 import { Play, Settings } from "lucide-react";
 // import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Header from "./header";
 import InvitePlayers from "./invite-players";
 
 export default function Lobby() {
   const router = useRouter();
+  const { code } = useParams();
+  const [isStarting, setIsStarting] = useState(false);
   const {
     room,
-    currentPlayer,
     selectPack,
     addCustomQuestion,
     removeCustomQuestion,
     startGame,
-    getAllQuestions,
+    player,
   } = useGame();
 
   const [showCustom, setShowCustom] = useState(false);
 
   useEffect(() => {
-    if (!room) {
-      router.push("/");
+    if (room) {
+      if (room.isStarted) {
+        router.push(`/game/${room.code}`);
+      }
+    } else {
+      if (code) {
+        router.push(`/?${code}`);
+      } else router.push(`/?${code}`);
     }
   }, [room, router]);
 
   if (!room) return null;
 
-  const isHost = currentPlayer?.isHost;
+  const isHost = player?.isHost;
+
   const canStart = room.selectedPack && room.players.length >= 1;
 
+  // const handleStart = () => {
+  //   if (canStart) {
+  //     startGame();
+  //     router.push(`/game/${room.code}`);
+  //   }
+  // };
+
   const handleStart = () => {
-    if (canStart) {
-      startGame();
-      router.push("/game");
+    if (!canStart) {
+      return alert(
+        "Make sure you have at least 2 players and a pack selected!"
+      );
     }
+    setIsStarting(true);
+    startGame((res: any) => {
+      // This logic only runs for the Host who clicked
+      if (!res.success) {
+        alert(res.message);
+        setIsStarting(false);
+      }
+    });
   };
 
   return (
@@ -108,10 +132,10 @@ export default function Lobby() {
               size="xl"
               className="w-full"
               onClick={handleStart}
-              disabled={!canStart}
+              disabled={!canStart || isStarting}
             >
               <Play className="w-5 h-5 mr-2" />
-              Start Game
+              {isStarting ? "Starting..." : "Start Game"}
             </Button>
             {!canStart && (
               <p className="text-center text-muted-foreground text-sm mt-2">
