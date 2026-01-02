@@ -37,7 +37,7 @@ export default function Header({
         />
       </div>
       <p className="text-muted-foreground text-sm mt-2">
-        Question {answeredCount + 1} of {totalQuestions}
+        Question {answeredCount} of {totalQuestions}
       </p>
     </motion.div>
   );

@@ -1,8 +1,11 @@
 import { useGame } from "@/context/game-context";
+import { Mode } from "@/types/types";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 
-export default function useHandleJoinRoom() {
+export default function useHandleJoinRoom(
+  setMode: Dispatch<SetStateAction<Mode>>
+) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const existingCode = searchParams.keys().next().value;
@@ -52,6 +55,14 @@ export default function useHandleJoinRoom() {
     }
   };
 
+  const goBack = () => {
+    setMode("select");
+    setError("");
+    setScanning(false);
+    setJoinMethod("code");
+    router.push("/");
+  };
+
   return {
     handleScan,
     scanning,
@@ -65,5 +76,6 @@ export default function useHandleJoinRoom() {
     setScanning,
     roomCode,
     handleJoin,
+    goBack,
   };
 }

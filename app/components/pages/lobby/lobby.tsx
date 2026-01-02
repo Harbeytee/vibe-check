@@ -11,6 +11,7 @@ import { Play, Settings } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Header from "./header";
 import InvitePlayers from "./invite-players";
+import { Toast } from "@/context/toast-context";
 
 export default function Lobby() {
   const router = useRouter();
@@ -31,11 +32,13 @@ export default function Lobby() {
     if (room) {
       if (room.isStarted) {
         router.push(`/game/${room.code}`);
+      } else if (!room.players.find((user) => user.id == player?.id)) {
+        router.push(`/?${code}`);
       }
     } else {
       if (code) {
         router.push(`/?${code}`);
-      } else router.push(`/?${code}`);
+      } else router.push(`/`);
     }
   }, [room, router]);
 
@@ -54,15 +57,13 @@ export default function Lobby() {
 
   const handleStart = () => {
     if (!canStart) {
-      return alert(
-        "Make sure you have at least 2 players and a pack selected!"
-      );
+      Toast.error("Make sure you have at least 2 players and a pack selected!");
     }
     setIsStarting(true);
     startGame((res: any) => {
       // This logic only runs for the Host who clicked
       if (!res.success) {
-        alert(res.message);
+        Toast.error(res.message);
         setIsStarting(false);
       }
     });

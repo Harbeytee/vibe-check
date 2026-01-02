@@ -60,7 +60,7 @@ export interface GameContextType {
   removeCustomQuestion: (index: number) => void;
   startGame: (callback: (res: any) => void) => void;
   nextQuestion: () => void;
-
+  flipCard: () => void;
   getCurrentTurnPlayer: () => Player | null;
   socket: Socket | null;
   player: Player | null;

@@ -2,7 +2,7 @@
 import { gamePacks } from "@/data/packs";
 import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import PlayerList from "../lobby/player-list";
 import FinishedGame from "./finished-game";
 import { useGame } from "@/context/game-context";
@@ -13,53 +13,33 @@ import TurnIndicator from "./turn-indicator";
 
 export default function Game() {
   const router = useRouter();
-  const {
-    room,
-    getCurrentTurnPlayer,
-    nextQuestion,
-
-    socket,
-    player,
-  } = useGame();
+  const { room, getCurrentTurnPlayer, nextQuestion, flipCard, player } =
+    useGame();
 
   const { code } = useParams();
+
+  const currentTurnPlayer = getCurrentTurnPlayer();
 
   useEffect(() => {
     if (room) {
       if (!room.isStarted) {
         router.push(`/lobby/${room.code}`);
+      } else if (!room.players.find((user) => user.id == player?.id)) {
+        router.push(`/?${code}`);
       }
     } else {
       if (code) {
         router.push(`/?${code}`);
-      } else router.push(`/?${code}`);
+      } else router.push(`/`);
     }
   }, [room, router]);
 
   if (!room) return null;
 
-  const currentTurnPlayer = getCurrentTurnPlayer();
   const selectedPack = gamePacks.find((p) => p.id === room.selectedPack);
 
   const answeredCount = room.answeredQuestions.length;
   const progress = ((answeredCount + 1) / room.totalQuestions) * 100;
-  console.log(currentTurnPlayer);
-
-  // const handleFlip = () => {
-  //   if (!isFlipped) {
-  //     setIsFlipped(true);
-  //   }
-  // };
-
-  // const handleNext = () => {
-  //   setIsTransitioning(true);
-  //   setIsFlipped(false);
-
-  //   setTimeout(() => {
-  //     nextQuestion();
-  //     setIsTransitioning(false);
-  //   }, 400);
-  // }
 
   const canFlip = player?.id == room.players[room.currentPlayerIndex].id;
 
@@ -68,7 +48,8 @@ export default function Game() {
     if (!canFlip) return;
 
     if (!room.isFlipped) {
-      socket?.emit("flip_card", { roomCode: room.code });
+      flipCard();
+      //   socket?.emit("flip_card", { roomCode: room.code });
     }
   };
 

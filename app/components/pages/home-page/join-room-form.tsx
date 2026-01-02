@@ -28,7 +28,8 @@ export default function JoinRoomForm({
     setScanning,
     roomCode,
     handleJoin,
-  } = useHandleJoinRoom();
+    goBack,
+  } = useHandleJoinRoom(setMode);
 
   if (mode === "join")
     return (
@@ -133,15 +134,7 @@ export default function JoinRoomForm({
         {error && <p className="text-destructive text-sm">{error}</p>}
 
         <div className="flex gap-3">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setMode("select");
-              setError("");
-              setScanning(false);
-              setJoinMethod("code");
-            }}
-          >
+          <Button variant="ghost" onClick={goBack}>
             Back
           </Button>
           <Button

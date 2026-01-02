@@ -50,6 +50,7 @@ export default function CreateRoomForm({
             onClick={() => {
               setMode("select");
               setError("");
+              router.push("/");
             }}
           >
             Back
