@@ -24,7 +24,7 @@ export const CustomToast = ({ message, variant }: CustomToastProps) => {
 
   return (
     <div
-      className={`flex items-center gap-4 ${background} rounded-[12px] h-[72px] px-6 shadow-md`}
+      className={`flex items-center gap-4 ${background} rounded-[12px] py-3 px-5 shadow-md`}
     >
       <p className={color}>{message}</p>
     </div>

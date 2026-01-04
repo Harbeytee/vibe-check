@@ -64,4 +64,5 @@ export interface GameContextType {
   getCurrentTurnPlayer: () => Player | null;
   socket: Socket | null;
   player: Player | null;
+  //verifyRoomMembership: () => Promise<boolean>;
 }

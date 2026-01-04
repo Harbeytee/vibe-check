@@ -36,24 +36,18 @@ export default function Lobby() {
         router.push(`/?${code}`);
       }
     } else {
-      if (code) {
-        router.push(`/?${code}`);
-      } else router.push(`/`);
+      router.push(`/${code ? `?${code}` : ""}`);
     }
   }, [room, router]);
+
+  // Verify room on mount
+  //useRoomVerification();
 
   if (!room) return null;
 
   const isHost = player?.isHost;
 
   const canStart = room.selectedPack && room.players.length >= 1;
-
-  // const handleStart = () => {
-  //   if (canStart) {
-  //     startGame();
-  //     router.push(`/game/${room.code}`);
-  //   }
-  // };
 
   const handleStart = () => {
     if (!canStart) {

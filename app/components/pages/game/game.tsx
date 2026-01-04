@@ -28,11 +28,12 @@ export default function Game() {
         router.push(`/?${code}`);
       }
     } else {
-      if (code) {
-        router.push(`/?${code}`);
-      } else router.push(`/`);
+      router.push(`/${code ? `?${code}` : ""}`);
     }
   }, [room, router]);
+
+  // Verify room on mount
+  // useRoomVerification();
 
   if (!room) return null;
 

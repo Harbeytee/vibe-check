@@ -7,6 +7,7 @@ import ModeSelection from "./mode-selection";
 import CreateRoomForm from "./create-room-form";
 import JoinRoomForm from "./join-room-form";
 import { useSearchParams } from "next/navigation";
+import HowToPlay from "./how-to-play";
 
 const HomePage: React.FC = () => {
   const searchParams = useSearchParams();
@@ -32,15 +33,19 @@ const HomePage: React.FC = () => {
         <CreateRoomForm mode={mode} setMode={setMode} />
         <JoinRoomForm mode={mode} setMode={setMode} />
 
-        {/* Footer */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-12 text-muted-foreground/60 text-sm"
-        >
-          Play with friends, family, or lovers
-        </motion.p>
+        <div className="flex justify-center items-center mt-12">
+          {/* Footer */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className=" text-muted-foreground/60 text-sm mr-3"
+          >
+            Play with friends, family, or lovers
+          </motion.p>
+          <p className="font-bold text-muted-foreground">|</p>
+          <HowToPlay />
+        </div>
       </motion.div>
     </div>
   );
