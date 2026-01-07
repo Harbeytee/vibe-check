@@ -18,9 +18,13 @@ export default function CreateRoomForm({
   const [playerName, setPlayerName] = useState("");
   const [error, setError] = useState("");
   const { createRoom } = useGame();
+  const [isCreating, setIsCreating] = useState(false);
+
   const handleCreate = () => {
+    setIsCreating(true);
     if (!playerName.trim()) {
       setError("Please enter your name");
+      setIsCreating(false);
       return;
     }
     createRoom(playerName.trim());
@@ -56,8 +60,13 @@ export default function CreateRoomForm({
             Back
           </Button>
           <Button variant="glow" className="flex-1" onClick={handleCreate}>
-            Create Room
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {isCreating ? (
+              "Creating..."
+            ) : (
+              <>
+                Create Room <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
           </Button>
         </div>
       </motion.div>

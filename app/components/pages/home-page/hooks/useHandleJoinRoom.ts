@@ -15,24 +15,23 @@ export default function useHandleJoinRoom(
   const [joinMethod, setJoinMethod] = useState<"code" | "scan">("code");
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState(existingCode || "");
+  const [isJoining, setIsJoining] = useState(false);
 
   const handleJoin = async (code?: string) => {
+    setIsJoining(true);
     const codeToUse = code || roomCode;
     if (!playerName.trim()) {
       setError("Please enter your name");
+      setIsJoining(false);
       return;
     }
     if (!codeToUse.trim()) {
       setError("Please enter a room code");
+      setIsJoining(false);
       return;
     }
-    // const success =
+
     joinRoom(codeToUse.trim(), playerName.trim());
-    // if (success) {
-    //   router.push(`/lobby${codeToUse}/`);
-    // } else {
-    //   setError("Room not found or game already started");
-    // }
   };
 
   const handleScan = (result: any) => {
@@ -77,5 +76,6 @@ export default function useHandleJoinRoom(
     roomCode,
     handleJoin,
     goBack,
+    isJoining,
   };
 }

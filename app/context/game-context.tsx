@@ -12,6 +12,7 @@ import { io, Socket } from "socket.io-client";
 import { useRouter } from "next/navigation";
 import { GameRoom, Player, GameContextType } from "@/types/interface";
 import { Toast } from "./toast-context";
+import config from "@/lib/config";
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -28,16 +29,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize Socket Connection
   useEffect(() => {
-    const newSocket = io(
-      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000",
-      {
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: maxReconnectAttempts,
-      }
-    );
+    const newSocket = io(config.socketUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: maxReconnectAttempts,
+    });
 
     setSocket(newSocket);
 
@@ -75,23 +73,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
 
     newSocket.on("disconnect", (reason) => {
+      Toast.error("Disconnected from server");
       console.log("❌ Disconnected from server:", reason);
       setIsConnected(false);
       stopHeartbeat();
-    });
-
-    newSocket.on("connect_error", (error) => {
-      console.error("Connection error:", error);
-      reconnectAttempts.current++;
-
-      if (reconnectAttempts.current >= maxReconnectAttempts) {
-        Toast.error("Failed to connect to server. Please refresh the page.");
-      }
+      router.push("/");
     });
 
     // --- ROOM EVENT LISTENERS ---
 
-    // 🔴 NEW: Room state sync - detects if player is removed from room
+    //  Room state sync - detects if player is removed from room
     newSocket.on("room_state_sync", (syncedRoom: GameRoom) => {
       lastSyncTime = Date.now(); // Update last sync time
 
@@ -136,20 +127,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     newSocket.on("room_updated", (updatedRoom: GameRoom) => {
       console.log("📦 Room updated:", updatedRoom);
-      setRoom(updatedRoom);
 
-      // Check if current player is still in the room
       const myData = updatedRoom.players.find(
         (p: any) => p.id === newSocket.id
       );
 
-      if (myData) {
-        setPlayer(myData);
-      } else {
-        // Player was removed from room
+      // Check if current player is still in the room if not notify them
+      if (!myData) {
         console.log("⚠️ You are no longer in this room");
+        newSocket.disconnect(); // Stop receiving all future events
         handlePlayerRemoved();
+        return;
       }
+
+      setRoom(updatedRoom);
+
+      setPlayer(myData);
     });
 
     newSocket.on("game_started", (startedRoom: GameRoom) => {
@@ -249,40 +242,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // const verifyRoomMembership = useCallback(async (): Promise<boolean> => {
-  //   if (!socket?.connected || !room?.code || !player?.name) {
-  //     return false;
-  //   }
-
-  //   return new Promise((resolve) => {
-  //     // Try to rejoin with current credentials
-  //     socket.emit(
-  //       "rejoin_room",
-  //       { roomCode: room.code, playerName: player.name },
-  //       (res: any) => {
-  //         if (res.success) {
-  //           // Still in room, update state
-  //           setRoom(res.room);
-  //           setPlayer(res.player);
-  //           resolve(true);
-  //         } else {
-  //           // Not in room anymore
-  //           console.log("❌ Room validation failed:", res.message);
-  //           Toast.error("Session expired. Redirecting to home...");
-  //           handleRoomNotFound();
-  //           resolve(false);
-  //         }
-  //       }
-  //     );
-
-  //     // Timeout after 5 seconds
-  //     setTimeout(() => {
-  //       console.warn("⚠️ Room validation timeout");
-  //       resolve(false);
-  //     }, 5000);
-  //   });
-  // }, [socket, room, player, handleRoomNotFound]);
-
   // --- GAME ACTIONS ---
 
   const createRoom = useCallback(
@@ -314,7 +273,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return Toast.success("Connecting to server...");
       }
 
-      console.log("🚪 Joining room:", roomCode);
       socket.emit("join_room", { roomCode, playerName }, (res: any) => {
         if (res.success) {
           console.log("✅ Joined room:", roomCode);
@@ -422,7 +380,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         room,
         player,
         socket,
-
         currentPlayer: getCurrentTurnPlayer(),
 
         // Actions
@@ -434,7 +391,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         nextQuestion,
         addCustomQuestion,
         removeCustomQuestion,
-        // verifyRoomMembership,
+
         getCurrentTurnPlayer,
       }}
     >

@@ -7,6 +7,7 @@ import { Button } from "../../ui/button";
 import { Mode } from "@/types/types";
 import JoinMethodToggle from "./join-method-toggle";
 import useHandleJoinRoom from "./hooks/useHandleJoinRoom";
+import { Toast } from "@/context/toast-context";
 
 export default function JoinRoomForm({
   mode,
@@ -29,6 +30,7 @@ export default function JoinRoomForm({
     roomCode,
     handleJoin,
     goBack,
+    isJoining,
   } = useHandleJoinRoom(setMode);
 
   if (mode === "join")
@@ -88,7 +90,7 @@ export default function JoinRoomForm({
                   {scanning && (
                     <Scanner
                       onScan={handleScan}
-                      onError={(error) => console.log(error)}
+                      onError={(error: any) => Toast.error(error)}
                       constraints={{ facingMode: "environment" }}
                       styles={{
                         container: {
@@ -143,8 +145,13 @@ export default function JoinRoomForm({
             onClick={() => handleJoin()}
             disabled={!roomCode && joinMethod === "code"}
           >
-            Join Room
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {isJoining ? (
+              "Joining room..."
+            ) : (
+              <>
+                Join Room <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
           </Button>
         </div>
       </motion.div>
