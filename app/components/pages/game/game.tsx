@@ -30,19 +30,29 @@ export default function Game() {
     } else {
       router.push(`/${code ? `?${code}` : ""}`);
     }
-  }, [room, router]);
-
-  // Verify room on mount
-  // useRoomVerification();
+  }, [room, player, router, code]);
 
   if (!room) return null;
+
+  // Check if player is still in the room - if not, let useEffect redirect
+  const isPlayerInRoom = room.players.some((user) => user.id === player?.id);
+  if (!isPlayerInRoom) {
+    return null;
+  }
+
+  // Check if currentPlayerIndex is valid - if not, player likely removed
+  const currentPlayerAtIndex = room.players[room.currentPlayerIndex];
+  if (!currentPlayerAtIndex) {
+    // Current player index points to a removed player, redirect
+    return null;
+  }
 
   const selectedPack = gamePacks.find((p) => p.id === room.selectedPack);
 
   const answeredCount = room.answeredQuestions.length;
   const progress = ((answeredCount + 1) / room.totalQuestions) * 100;
 
-  const canFlip = player?.id == room.players[room.currentPlayerIndex].id;
+  const canFlip = player?.id === currentPlayerAtIndex.id;
 
   const handleFlip = () => {
     // Only the current player should be allowed to flip the card
@@ -50,7 +60,6 @@ export default function Game() {
 
     if (!room.isFlipped) {
       flipCard();
-      //   socket?.emit("flip_card", { roomCode: room.code });
     }
   };
 

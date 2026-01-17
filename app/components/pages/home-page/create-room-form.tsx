@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { Dispatch, SetStateAction, useState } from "react";
+import { Dispatch, SetStateAction, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Mode } from "@/types/types";
 import { useGame } from "@/context/game-context";
@@ -17,8 +17,9 @@ export default function CreateRoomForm({
   const router = useRouter();
   const [playerName, setPlayerName] = useState("");
   const [error, setError] = useState("");
-  const { createRoom } = useGame();
+  const { createRoom, room } = useGame();
   const [isCreating, setIsCreating] = useState(false);
+  const createTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleCreate = () => {
     setIsCreating(true);
@@ -27,8 +28,39 @@ export default function CreateRoomForm({
       setIsCreating(false);
       return;
     }
+
+    // Clear any existing timeout
+    if (createTimeoutRef.current) {
+      clearTimeout(createTimeoutRef.current);
+    }
+
+    // Set timeout to reset loading state if create fails (after 10 seconds)
+    createTimeoutRef.current = setTimeout(() => {
+      setIsCreating(false);
+    }, 10000);
+
     createRoom(playerName.trim());
   };
+
+  // Reset loading state when room is successfully created (room becomes non-null)
+  useEffect(() => {
+    if (room && isCreating) {
+      if (createTimeoutRef.current) {
+        clearTimeout(createTimeoutRef.current);
+        createTimeoutRef.current = null;
+      }
+      setIsCreating(false);
+    }
+  }, [room, isCreating]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (createTimeoutRef.current) {
+        clearTimeout(createTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (mode === "create")
     return (
@@ -44,6 +76,11 @@ export default function CreateRoomForm({
           onChange={(e) => {
             setPlayerName(e.target.value);
             setError("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !isCreating) {
+              handleCreate();
+            }
           }}
           autoFocus
         />

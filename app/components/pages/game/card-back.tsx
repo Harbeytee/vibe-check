@@ -10,8 +10,8 @@ const CardBack = ({
 }) => {
   return (
     <motion.div
-      // className="relative w-80 h-[480px] rounded-[2rem] overflow-hidden border shadow-2xl flex flex-col items-center justify-center p-8 bg-gradient-to-br from-neutral-900 via-neutral-950 to-black"
-      className={`absolute inset-0 border-primary border border-[hsla(24,85%,60%,0.3)] rounded-3xl bg-gradient-to-br ${""} shadow-2xl flex flex-col items-center justify-center p-8`}
+      // className="relative w-80 h-[480px] rounded-[2rem] overflow-hidden border shadow-2xl flex flex-col items-center justify-center p-8 bg-gradient-to-br from-neutral-900 via-neutral-950 to-black n"
+      className={`absolute z-[0] inset-0 border-primary border border-[hsla(24,85%,60%,0.3)] rounded-3xl bg-gradient-to-br ${""} shadow-2xl flex flex-col items-center justify-center p-8`}
       style={{
         backfaceVisibility: "hidden",
         WebkitBackfaceVisibility: "hidden",
@@ -36,13 +36,6 @@ const CardBack = ({
           backgroundSize: "20px 20px",
         }}
       />
-
-      {/* Scanning Animation Line */}
-      {/* <motion.div
-        animate={{ y: [-500, 500] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-x-0 h-[2px] bg-[hsl(var(--primary))] opacity-30 blur-sm z-0"
-      /> */}
 
       {/* Breathing Ring */}
       <motion.div

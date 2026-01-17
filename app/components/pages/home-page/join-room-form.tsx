@@ -55,6 +55,11 @@ export default function JoinRoomForm({
             setPlayerName(e.target.value);
             setError("");
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !isJoining && (joinMethod === "scan" || roomCode)) {
+              handleJoin();
+            }
+          }}
           autoFocus
         />
 
@@ -72,6 +77,11 @@ export default function JoinRoomForm({
                 onChange={(e) => {
                   setRoomCode(e.target.value.toUpperCase());
                   setError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isJoining && playerName.trim() && roomCode.trim()) {
+                    handleJoin();
+                  }
                 }}
                 className="font-mono tracking-widest text-center text-lg"
                 maxLength={6}

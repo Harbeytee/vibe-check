@@ -50,6 +50,15 @@ export interface GameState {
   currentPlayer: Player | null;
 }
 
+export interface TrafficStatus {
+  level: "normal" | "high" | "critical";
+  activeRooms: number;
+  activeConnections: number;
+  roomCreationEnabled: boolean;
+  message?: string;
+  timestamp: number;
+}
+
 export interface GameContextType {
   room: GameRoom | null;
   currentPlayer: Player | null;
@@ -64,5 +73,6 @@ export interface GameContextType {
   getCurrentTurnPlayer: () => Player | null;
   socket: Socket | null;
   player: Player | null;
+  trafficStatus: TrafficStatus | null;
   //verifyRoomMembership: () => Promise<boolean>;
 }

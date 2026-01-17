@@ -7,7 +7,7 @@ import ShareOptionsPopover from "./share-options-popover";
 
 export default function InvitePlayers({ roomCode }: { roomCode: string }) {
   const [showQR, setShowQR] = useState(false);
-  const shareUrl = `${window.location.origin}/join/${roomCode}`;
+  const shareUrl = `${window.location.origin}/lobby/${roomCode}`;
 
   return (
     <motion.div

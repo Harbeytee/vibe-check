@@ -10,7 +10,12 @@ import {
 } from "react";
 import { io, Socket } from "socket.io-client";
 import { useRouter } from "next/navigation";
-import { GameRoom, Player, GameContextType } from "@/types/interface";
+import {
+  GameRoom,
+  Player,
+  GameContextType,
+  TrafficStatus,
+} from "@/types/interface";
 import { Toast } from "./toast-context";
 import config from "@/lib/config";
 
@@ -21,11 +26,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [trafficStatus, setTrafficStatus] = useState<TrafficStatus | null>(
+    null
+  );
   const router = useRouter();
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const HEARTBEAT_INTERVAL = 5000;
+  const roomRef = useRef<GameRoom | null>(null);
+  const playerRef = useRef<Player | null>(null);
 
   // Initialize Socket Connection
   useEffect(() => {
@@ -61,7 +71,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             if (res.success) {
               console.log("✅ Successfully rejoined room");
               setRoom(res.room);
+              roomRef.current = res.room;
               setPlayer(res.player);
+              playerRef.current = res.player;
               startHeartbeat(res.room.code);
             } else {
               console.log("❌ Failed to rejoin room:", res.message);
@@ -77,7 +89,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       console.log("❌ Disconnected from server:", reason);
       setIsConnected(false);
       stopHeartbeat();
-      router.push("/");
+      // router.push("/");
     });
 
     // --- ROOM EVENT LISTENERS ---
@@ -97,15 +109,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         stopHeartbeat();
         setRoom(null);
+        roomRef.current = null;
         setPlayer(null);
+        playerRef.current = null;
         router.push("/");
         return;
       }
 
       // Update with latest room state
       setRoom(syncedRoom);
+      roomRef.current = syncedRoom;
       const myData = syncedRoom.players.find((p: any) => p.id === newSocket.id);
-      if (myData) setPlayer(myData);
+      if (myData) {
+        setPlayer(myData);
+        playerRef.current = myData;
+      }
     });
 
     // 🔴 NEW: Periodic check for missing room_state_sync (room deleted)
@@ -120,7 +138,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
         stopHeartbeat();
         setRoom(null);
+        roomRef.current = null;
         setPlayer(null);
+        playerRef.current = null;
         router.push("/");
       }
     }, 5000);
@@ -141,19 +161,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setRoom(updatedRoom);
+      roomRef.current = updatedRoom;
 
       setPlayer(myData);
+      playerRef.current = myData;
     });
 
     newSocket.on("game_started", (startedRoom: GameRoom) => {
       console.log("🎮 Game started");
       setRoom(startedRoom);
+      roomRef.current = startedRoom;
       router.push(`/game/${startedRoom.code}`);
     });
 
-    newSocket.on("game_over", ({ message }: { message: string }) => {
-      Toast.success(message);
-    });
+    // newSocket.on("game_over", ({ message }: { message: string }) => {
+    //   Toast.success(message);
+    // });
 
     // newSocket.on("new_host_toast", ({ name }: { name: string }) => {
     //   Toast.success(`${name} is now the host!`);
@@ -168,9 +191,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       // Update room state in context/store
       setRoom(room);
+      roomRef.current = room;
       const myData = room.players.find((p: any) => p.id === newSocket.id);
       if (myData) {
         setPlayer(myData);
+        playerRef.current = myData;
       } else {
         handlePlayerRemoved();
       }
@@ -191,9 +216,67 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       handleRoomNotFound();
     });
 
+    // Traffic status listener - receives updates when traffic is high/critical
+    newSocket.on("traffic_status", (status: TrafficStatus) => {
+      console.log("🚦 Traffic status update:", status);
+      setTrafficStatus(status);
+
+      // Show toast notification for high/critical traffic
+      if (status.level === "critical") {
+        Toast.error(
+          status.message ||
+            "High traffic detected. Some features may be limited."
+        );
+      } else if (status.level === "high") {
+        Toast.error(
+          status.message || "High traffic detected. Some delays may occur."
+        );
+      }
+    });
+
+    // Page Visibility API - detect when user returns to the page
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("👁️ Page became visible - checking connection state");
+
+        // Check if socket is actually connected
+        if (!newSocket.connected) {
+          console.log("⚠️ Socket not connected, attempting to reconnect...");
+          newSocket.connect();
+          return;
+        }
+
+        // If we're in a room, verify we're still in it by requesting room state
+        // Use refs to get current values without stale closure issues
+        const currentRoom = roomRef.current;
+        const currentPlayer = playerRef.current;
+
+        if (currentRoom?.code && currentPlayer?.name && newSocket.connected) {
+          console.log("🔍 Verifying room state after visibility change");
+          // Request a room state sync to verify we're still in the room
+          newSocket.emit(
+            "get_room_state",
+            { roomCode: currentRoom.code },
+            (res: any) => {
+              if (res.success) {
+                // Server will send room_state_sync event which will update our state
+                lastSyncTime = Date.now();
+              } else {
+                console.log("❌ Failed to verify room state:", res.message);
+                // Player likely disconnected - let room_state_sync handle it or handle here
+              }
+            }
+          );
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     // Cleanup on unmount
     return () => {
       console.log("🧹 Cleaning up socket connection");
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       stopHeartbeat();
       clearInterval(syncCheckInterval);
       newSocket.removeAllListeners();
@@ -206,7 +289,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const handleRoomNotFound = useCallback(() => {
     stopHeartbeat();
     setRoom(null);
+    roomRef.current = null;
     setPlayer(null);
+    playerRef.current = null;
     router.push("/");
   }, [router]);
 
@@ -251,20 +336,52 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return Toast.error("You are offline. Please wait for connection...");
       }
 
+      // Check if room creation is disabled due to traffic
+      if (trafficStatus && !trafficStatus.roomCreationEnabled) {
+        const retryMessage =
+          trafficStatus.message ||
+          "Room creation temporarily paused due to high traffic. Please try again shortly.";
+        Toast.error(retryMessage);
+        return;
+      }
+
       console.log("🏠 Creating room...");
       socket.emit("create_room", { playerName }, (res: any) => {
         if (res.success) {
           console.log("✅ Room created:", res.room.code);
           setRoom(res.room);
+          roomRef.current = res.room;
           setPlayer(res.player);
+          playerRef.current = res.player;
           startHeartbeat(res.room.code);
           router.push(`/lobby/${res.room.code}`);
         } else {
-          Toast.error(res.message || "Failed to create room");
+          // Handle traffic status in error response
+          if (res.trafficStatus) {
+            const trafficInfo = res.trafficStatus;
+            setTrafficStatus({
+              level: trafficInfo.level,
+              activeRooms: 0,
+              activeConnections: 0,
+              roomCreationEnabled: false,
+              message: res.message,
+              timestamp: Date.now(),
+            });
+
+            // Show error with retry information
+            const retryMsg =
+              res.message ||
+              `Room creation paused. Try again in ${
+                trafficInfo.retryAfter || 30
+              }s`;
+            Toast.error(retryMsg);
+          } else {
+            Toast.error(res.message || "Failed to create room");
+          }
         }
       });
     },
-    [socket, router, startHeartbeat]
+    [socket, router, startHeartbeat, trafficStatus]
   );
 
   const joinRoom = useCallback(
@@ -277,7 +394,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         if (res.success) {
           console.log("✅ Joined room:", roomCode);
           setRoom(res.room);
+          roomRef.current = res.room;
           setPlayer(res.player);
+          playerRef.current = res.player;
           startHeartbeat(res.room.code);
           router.push(`/lobby/${res.room.code}`);
         } else {
@@ -369,7 +488,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     console.log("👋 Leaving room");
     stopHeartbeat();
     setRoom(null);
+    roomRef.current = null;
     setPlayer(null);
+    playerRef.current = null;
     router.push("/");
   }, [router, stopHeartbeat]);
 
@@ -381,6 +502,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         player,
         socket,
         currentPlayer: getCurrentTurnPlayer(),
+        trafficStatus,
 
         // Actions
         createRoom,
