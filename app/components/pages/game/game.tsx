@@ -10,6 +10,7 @@ import NextButton from "./next-button";
 import CardSection from "./card-section";
 import Header from "./header";
 import TurnIndicator from "./turn-indicator";
+import { Toast } from "@/context/toast-context";
 
 export default function Game() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function Game() {
       if (!room.isStarted) {
         router.push(`/lobby/${room.code}`);
       } else if (!room.players.find((user) => user.id == player?.id)) {
+        Toast.error("Removed from room");
         router.push(`/?${code}`);
       }
     } else {

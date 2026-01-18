@@ -2,7 +2,14 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
-import { Dispatch, SetStateAction, useState, useEffect, useRef } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Mode } from "@/types/types";
 import { useGame } from "@/context/game-context";
@@ -17,15 +24,18 @@ export default function CreateRoomForm({
   const router = useRouter();
   const [playerName, setPlayerName] = useState("");
   const [error, setError] = useState("");
-  const { createRoom, room } = useGame();
+  const { createRoom, room, socket, onOperationError } = useGame();
   const [isCreating, setIsCreating] = useState(false);
   const createTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isCreatingRef = useRef(false);
 
   const handleCreate = () => {
     setIsCreating(true);
+    isCreatingRef.current = true;
     if (!playerName.trim()) {
       setError("Please enter your name");
       setIsCreating(false);
+      isCreatingRef.current = false;
       return;
     }
 
@@ -37,21 +47,71 @@ export default function CreateRoomForm({
     // Set timeout to reset loading state if create fails (after 10 seconds)
     createTimeoutRef.current = setTimeout(() => {
       setIsCreating(false);
+      isCreatingRef.current = false;
     }, 10000);
 
     createRoom(playerName.trim());
   };
 
+  const resetCreating = useCallback(() => {
+    if (createTimeoutRef.current) {
+      clearTimeout(createTimeoutRef.current);
+      createTimeoutRef.current = null;
+    }
+    setIsCreating(false);
+    isCreatingRef.current = false;
+  }, []);
+
   // Reset loading state when room is successfully created (room becomes non-null)
   useEffect(() => {
     if (room && isCreating) {
-      if (createTimeoutRef.current) {
-        clearTimeout(createTimeoutRef.current);
-        createTimeoutRef.current = null;
-      }
-      setIsCreating(false);
+      resetCreating();
     }
-  }, [room, isCreating]);
+  }, [room, isCreating, resetCreating]);
+
+  // Listen for operation errors (callback failures) to reset loading state
+  useEffect(() => {
+    const unsubscribe = onOperationError(() => {
+      if (isCreatingRef.current) {
+        resetCreating();
+      }
+    });
+
+    return unsubscribe;
+  }, [onOperationError, resetCreating]);
+
+  // Listen for socket errors to reset loading state
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleError = (data: { message: string }) => {
+      if (isCreatingRef.current) {
+        resetCreating();
+      }
+    };
+
+    const handleRoomNotFound = ({ roomCode }: { roomCode?: string }) => {
+      if (isCreatingRef.current) {
+        resetCreating();
+      }
+    };
+
+    const handleRoomDeleted = () => {
+      if (isCreatingRef.current) {
+        resetCreating();
+      }
+    };
+
+    socket.on("error", handleError);
+    socket.on("room_not_found", handleRoomNotFound);
+    socket.on("room_deleted", handleRoomDeleted);
+
+    return () => {
+      socket.off("error", handleError);
+      socket.off("room_not_found", handleRoomNotFound);
+      socket.off("room_deleted", handleRoomDeleted);
+    };
+  }, [socket, resetCreating]);
 
   // Cleanup timeout on unmount
   useEffect(() => {

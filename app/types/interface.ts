@@ -74,5 +74,6 @@ export interface GameContextType {
   socket: Socket | null;
   player: Player | null;
   trafficStatus: TrafficStatus | null;
+  onOperationError: (listener: () => void) => () => void;
   //verifyRoomMembership: () => Promise<boolean>;
 }

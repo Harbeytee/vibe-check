@@ -33,12 +33,13 @@ export default function Lobby() {
       if (room.isStarted) {
         router.push(`/game/${room.code}`);
       } else if (!room.players.find((user) => user.id == player?.id)) {
+        Toast.error("Removed from room");
         router.push(`/?${code}`);
       }
     } else {
       router.push(`/${code ? `?${code}` : ""}`);
     }
-  }, [room, router]);
+  }, [room, router, player, code]);
 
   // Verify room on mount
   //useRoomVerification();
