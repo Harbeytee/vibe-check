@@ -159,7 +159,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       if (myData) setPlayer(myData);
     });
 
-    // 🔴 NEW: Periodic check for missing room_state_sync (room deleted)
+    //Periodic check for missing room_state_sync (room deleted)
     const syncCheckInterval = setInterval(() => {
       const now = Date.now();
       const timeSinceLastSync = now - lastSyncTime;
@@ -211,14 +211,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       setRoom(startedRoom);
       router.push(`/game/${startedRoom.code}`);
     });
-
-    // newSocket.on("game_over", ({ message }: { message: string }) => {
-    //   Toast.success(message);
-    // });
-
-    // newSocket.on("new_host_toast", ({ name }: { name: string }) => {
-    //   Toast.success(`${name} is now the host!`);
-    // });
 
     newSocket.on("player_left", ({ leavingPlayer, newHost, room }) => {
       Toast.error(`${leavingPlayer.name} left the game`);
@@ -276,7 +268,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       console.log("🚦 Traffic status update:", status);
       setTrafficStatus(status);
 
-      // Show toast notification for high/critical traffic
       if (status.level === "critical") {
         Toast.error(
           status.message ||
@@ -506,14 +497,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     if (!room || room.currentPlayerIndex === undefined) return null;
     return room.players[room.currentPlayerIndex] || null;
   }, [room]);
-
-  const leaveRoom = useCallback(() => {
-    console.log("👋 Leaving room");
-    stopHeartbeat();
-    setRoom(null);
-    setPlayer(null);
-    router.push("/");
-  }, [router, stopHeartbeat]);
 
   return (
     <GameContext.Provider

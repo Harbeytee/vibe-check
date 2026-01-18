@@ -69,8 +69,6 @@ export default function Game() {
     // Only the host should be allowed to click next
     if (!canFlip) return;
 
-    // We just call the function, the server handles the
-    // timing of isTransitioning and isFlipped
     nextQuestion();
   };
 
