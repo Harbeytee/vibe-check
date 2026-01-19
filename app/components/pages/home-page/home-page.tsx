@@ -33,7 +33,7 @@ const HomePage: React.FC = () => {
         <CreateRoomForm mode={mode} setMode={setMode} />
         <JoinRoomForm mode={mode} setMode={setMode} />
 
-        <div className="flex justify-center items-center mt-12">
+        <div className="md:flex justify-center items-center mt-12">
           {/* Footer */}
           <motion.p
             initial={{ opacity: 0 }}
@@ -43,7 +43,7 @@ const HomePage: React.FC = () => {
           >
             Play with friends, family, or lovers
           </motion.p>
-          <p className="font-bold text-muted-foreground">|</p>
+          <p className="hidden md:block font-bold text-muted-foreground">|</p>
           <HowToPlay />
         </div>
       </motion.div>

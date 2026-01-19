@@ -31,7 +31,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   );
   const router = useRouter();
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const HEARTBEAT_INTERVAL = 5000;
   const roomRef = useRef<GameRoom | null>(null);
@@ -97,7 +96,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     newSocket.on("connect", () => {
       console.log("✅ Connected to server");
       setIsConnected(true);
-      reconnectAttempts.current = 0;
 
       // Attempt to rejoin room if we were in one
       const savedRoom = room;
@@ -128,7 +126,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       console.log("❌ Disconnected from server:", reason);
       setIsConnected(false);
       stopHeartbeat();
-      // router.push("/");
     });
 
     // --- ROOM EVENT LISTENERS ---
@@ -186,7 +183,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       // Check if current player is still in the room if not notify them
       if (!myData) {
         console.log("⚠️ You are no longer in this room");
-        // Don't disconnect - let them stay connected to receive redirect event
         Toast.error("You have been removed from the room");
         stopHeartbeat();
         setRoom(null);
@@ -290,33 +286,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []); // Only run once on mount
 
-  // Membership check when room changes or socket reconnects
-  useEffect(() => {
-    if (!room?.code || !socket?.connected) return;
-
-    // Periodic membership check - detects if player was removed after sleep/disconnect
-    const membershipCheckInterval = setInterval(() => {
-      if (socket?.connected && room?.code) {
-        // Check if we're still in the room
-        socket.emit("check_membership", { roomCode: room.code }, (res: any) => {
-          if (!res.success || !res.inRoom) {
-            // Not in room - redirect
-            console.log("🚫 Membership check failed - not in room");
-            Toast.error("You have been removed from the room");
-            stopHeartbeat();
-            setRoom(null);
-            setPlayer(null);
-            router.push(`/?${room.code}`);
-          }
-        });
-      }
-    }, 10000); // Check every 10 seconds
-
-    return () => {
-      clearInterval(membershipCheckInterval);
-    };
-  }, [room?.code, socket, router, stopHeartbeat]);
-
   // --- HELPER FUNCTIONS ---
 
   const handleRoomNotFound = useCallback(() => {
@@ -346,8 +315,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const createRoom = useCallback(
     (playerName: string) => {
       if (!socket?.connected) {
-        Toast.error;
-        return Toast.error("You are offline. Please wait for connection...");
+        Toast.error("You are offline. Please wait for connection...");
+        return;
       }
 
       // Check if room creation is disabled due to traffic

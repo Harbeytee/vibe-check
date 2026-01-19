@@ -41,7 +41,7 @@ export default function FinishedGame({
           <Button
             variant="outline"
             size="lg"
-            className="flex-1"
+            className="flex-1 p-2"
             onClick={() => router.push("/")}
           >
             <Home className="w-4 h-4 mr-2" />

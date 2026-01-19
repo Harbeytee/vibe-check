@@ -128,7 +128,3 @@ export const gamePacks: Pack[] = [
     ],
   },
 ];
-
-export const getPackById = (id: string): Pack | undefined => {
-  return gamePacks.find((pack) => pack.id === id);
-};

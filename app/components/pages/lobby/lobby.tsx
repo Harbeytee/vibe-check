@@ -7,7 +7,6 @@ import PackSelector from "./pack-selector";
 import PlayerList from "./player-list";
 import CustomQuestions from "./custom-questions";
 import { Play, Settings } from "lucide-react";
-// import { useToast } from "@/hooks/use-toast";
 import { useParams, useRouter } from "next/navigation";
 import Header from "./header";
 import InvitePlayers from "./invite-players";
@@ -41,14 +40,11 @@ export default function Lobby() {
     }
   }, [room, router, player, code]);
 
-  // Verify room on mount
-  //useRoomVerification();
-
   if (!room) return null;
 
   const isHost = player?.isHost;
 
-  const canStart = room.selectedPack && room.players.length >= 1;
+  const canStart = room.selectedPack && room.players.length >= 2;
 
   const handleStart = () => {
     if (!canStart) {
