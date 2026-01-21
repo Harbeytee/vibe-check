@@ -18,7 +18,7 @@ export interface Pack {
 }
 
 export interface Player {
-  id: string | number; // string in backend (socket.id), number compatibility for frontend
+  id: string | number;
   name: string;
   isHost: boolean;
 }
