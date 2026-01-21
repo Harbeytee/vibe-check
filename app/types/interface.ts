@@ -18,7 +18,7 @@ export interface Pack {
 }
 
 export interface Player {
-  id: number;
+  id: string | number; // string in backend (socket.id), number compatibility for frontend
   name: string;
   isHost: boolean;
 }
@@ -61,8 +61,8 @@ export interface GameContextType {
   startGame: (callback: (res: any) => void) => void;
   nextQuestion: () => void;
   flipCard: () => void;
+  kickPlayer: (playerId: string) => void;
   getCurrentTurnPlayer: () => Player | null;
   socket: Socket | null;
   player: Player | null;
-  //verifyRoomMembership: () => Promise<boolean>;
 }

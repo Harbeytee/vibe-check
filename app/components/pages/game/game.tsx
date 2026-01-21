@@ -13,8 +13,14 @@ import TurnIndicator from "./turn-indicator";
 
 export default function Game() {
   const router = useRouter();
-  const { room, getCurrentTurnPlayer, nextQuestion, flipCard, player } =
-    useGame();
+  const {
+    room,
+    getCurrentTurnPlayer,
+    nextQuestion,
+    flipCard,
+    player,
+    kickPlayer,
+  } = useGame();
 
   const { code } = useParams();
 
@@ -68,6 +74,7 @@ export default function Game() {
     return (
       <FinishedGame
         players={room.players}
+        currentPlayer={player}
         totalQuestions={room.totalQuestions}
       />
     );
@@ -101,8 +108,11 @@ export default function Game() {
         </p>
         <PlayerList
           players={room.players}
+          currentPlayer={player}
           currentTurnIndex={room.currentPlayerIndex}
           showTurn
+          showKickButton
+          onKick={kickPlayer}
         />
       </motion.div>
     </div>
