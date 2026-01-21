@@ -32,7 +32,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   // heartbeat management
   const stopHeartbeat = useCallback(() => {
     if (heartbeatRef.current) {
-      console.log("💔 Stopping heartbeat");
       clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
     }
@@ -42,8 +41,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     (roomCode: string) => {
       stopHeartbeat(); // Clear any existing interval
       lastHeartbeatTime.current = Date.now();
-
-      console.log("💓 Starting heartbeat for room:", roomCode);
 
       heartbeatRef.current = setInterval(() => {
         const now = Date.now();
@@ -57,7 +54,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
           // Check if socket is still connected
           if (socket && !socket.connected) {
-            console.log("🔄 Socket disconnected - attempting reconnect...");
             socket.connect();
           } else if (socket?.connected && roomCode) {
             // Socket appears connected but we missed time - verify connection
@@ -97,7 +93,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     // Connection Status Handlers
     newSocket.on("connect", () => {
-      console.log("✅ Connected to server");
       setIsConnected(true);
       reconnectAttempts.current = 0;
 
@@ -106,18 +101,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const savedPlayer = player;
 
       if (savedRoom?.code && savedPlayer?.name) {
-        console.log("🔄 Attempting to rejoin room after reconnect...");
         newSocket.emit(
           "rejoin_room",
           { roomCode: savedRoom.code, playerName: savedPlayer.name },
           (res: any) => {
             if (res.success) {
-              console.log("✅ Successfully rejoined room");
               setRoom(res.room);
               setPlayer(res.player);
               startHeartbeat(res.room.code);
             } else {
-              console.log("❌ Failed to rejoin room:", res.message);
               handleRoomNotFound();
             }
           }
@@ -127,7 +119,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     newSocket.on("disconnect", (reason) => {
       Toast.error("Disconnected from server");
-      console.log("❌ Disconnected from server:", reason);
+
       setIsConnected(false);
       stopHeartbeat();
       // Don't redirect immediately - let reconnection logic handle it
@@ -145,7 +137,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       );
 
       if (!amIStillInRoom) {
-        console.log("🚫 Disconnected from room (not in players list)");
         Toast.error("You have been disconnected from the room");
 
         stopHeartbeat();
@@ -168,7 +159,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       // If we haven't received a sync in 25 seconds, room might be deleted
       if (room?.code && timeSinceLastSync > SYNC_TIMEOUT && isConnected) {
-        console.log("🚫 No room sync received - room may be deleted");
         Toast.error("Room has been closed");
 
         stopHeartbeat();
@@ -179,15 +169,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }, 5000);
 
     newSocket.on("room_updated", (updatedRoom: GameRoom) => {
-      console.log("📦 Room updated:", updatedRoom);
-
       const myData = updatedRoom.players.find(
         (p: any) => p.id === newSocket.id
       );
 
       // Check if current player is still in the room if not notify them
       if (!myData) {
-        console.log("⚠️ You are no longer in this room");
         // Don't disconnect - let them stay connected to receive redirect event
         Toast.error("You have been removed from the room");
         stopHeartbeat();
@@ -209,7 +196,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
 
     newSocket.on("game_started", (startedRoom: GameRoom) => {
-      console.log("🎮 Game started");
       setRoom(startedRoom);
       router.push(`/game/${startedRoom.code}`);
     });
@@ -281,7 +267,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     newSocket.on(
       "player_removed_from_room",
       ({ roomCode, message }: { roomCode: string; message: string }) => {
-        console.log("🚫 Removed from room:", message);
         Toast.error(message || "You have been removed from the room");
         stopHeartbeat();
         setRoom(null);
@@ -295,7 +280,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     newSocket.on(
       "player_kicked",
       ({ roomCode, message }: { roomCode: string; message: string }) => {
-        console.log("🚫 Kicked from room:", message);
         // Toast removed - player_left event already shows toast to everyone
         stopHeartbeat();
         setRoom(null);
@@ -309,8 +293,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     // Detect when page becomes visible again (PC wakes from sleep)
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("👁️ Page became visible - checking connection...");
-
         // Use current state values via closure
         const currentRoom = room;
         const currentPlayer = player;
@@ -321,8 +303,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           currentRoom?.code &&
           (!newSocket.connected || !currentIsConnected)
         ) {
-          console.log("🔄 Reconnecting after wake from sleep...");
-
           if (!newSocket.connected) {
             newSocket.connect();
           }
@@ -335,15 +315,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                 { roomCode: currentRoom.code, playerName: currentPlayer.name },
                 (res: any) => {
                   if (res.success) {
-                    console.log("✅ Successfully rejoined room after wake");
                     setRoom(res.room);
                     setPlayer(res.player);
                     startHeartbeat(res.room.code);
                   } else {
-                    console.log(
-                      "❌ Failed to rejoin room after wake:",
-                      res.message
-                    );
                     Toast.error("You have been removed from the room");
                     stopHeartbeat();
                     setRoom(null);
@@ -363,7 +338,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     // Cleanup on unmount
     return () => {
-      console.log("🧹 Cleaning up socket connection");
       stopHeartbeat();
       clearInterval(syncCheckInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -383,7 +357,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         socket.emit("check_membership", { roomCode: room.code }, (res: any) => {
           if (!res.success || !res.inRoom) {
             // Not in room - redirect
-            console.log("🚫 Membership check failed - not in room");
             Toast.error("You have been removed from the room");
             stopHeartbeat();
             setRoom(null);
@@ -435,10 +408,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      console.log("🏠 Creating room...");
       socket.emit("create_room", { playerName }, (res: any) => {
         if (res.success) {
-          console.log("✅ Room created:", res.room.code);
           setRoom(res.room);
           setPlayer(res.player);
           startHeartbeat(res.room.code);
@@ -462,7 +433,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       socket.emit("join_room", { roomCode, playerName }, (res: any) => {
         if (res.success) {
-          console.log("✅ Joined room:", roomCode);
           setRoom(res.room);
           setPlayer(res.player);
           startHeartbeat(res.room.code);
@@ -480,7 +450,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     (packId: string) => {
       if (!socket?.connected || !room?.code) return;
 
-      console.log("📦 Selecting pack:", packId);
       socket.emit("select_pack", { roomCode: room.code, packId });
     },
     [socket, room]
@@ -495,10 +464,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      console.log("🎮 Starting game...");
       socket.emit("start_game", { roomCode: room.code }, (res: any) => {
         if (res.success) {
-          console.log("✅ Game started successfully");
         } else {
           Toast.error(res.message || "Failed to start game");
         }
@@ -523,7 +490,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    console.log("⏭️ Getting next question...");
     socket.emit("next_question", { roomCode: room.code });
   }, [socket, room]);
 
@@ -531,7 +497,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     (question: string) => {
       if (!socket?.connected || !room?.code) return;
 
-      console.log("➕ Adding custom question");
       socket.emit("add_custom_question", { roomCode: room.code, question });
     },
     [socket, room]
@@ -541,7 +506,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     (questionId: number) => {
       if (!socket?.connected || !room?.code) return;
 
-      console.log("➖ Removing custom question");
       socket.emit("remove_custom_question", {
         roomCode: room.code,
         questionId,
@@ -567,7 +531,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      console.log("👢 Kicking player:", playerIdToKick);
       socket.emit(
         "kick_player",
         { roomCode: room.code, playerIdToKick },
