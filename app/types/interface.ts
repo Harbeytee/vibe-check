@@ -53,12 +53,16 @@ export interface GameState {
 export interface GameContextType {
   room: GameRoom | null;
   currentPlayer: Player | null;
-  createRoom: (playerName: string) => void;
-  joinRoom: (roomCode: string, playerName: string) => void;
+  createRoom: (playerName: string, callback?: (res: any) => void) => void;
+  joinRoom: (
+    roomCode: string,
+    playerName: string,
+    callback?: (res: any) => void
+  ) => void;
   selectPack: (packId: PackType) => void;
   addCustomQuestion: (question: string) => void;
   removeCustomQuestion: (index: number) => void;
-  startGame: (callback: (res: any) => void) => void;
+  startGame: (callback?: (res: any) => void) => void;
   nextQuestion: () => void;
   flipCard: () => void;
   kickPlayer: (playerId: string) => void;

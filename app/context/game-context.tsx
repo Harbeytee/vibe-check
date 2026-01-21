@@ -425,10 +425,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   // --- GAME ACTIONS ---
 
   const createRoom = useCallback(
-    (playerName: string) => {
+    (playerName: string, callback?: (res: any) => void) => {
       if (!socket?.connected) {
-        Toast.error;
-        return Toast.error("You are offline. Please wait for connection...");
+        Toast.error("You are offline. Please wait for connection...");
+        callback?.({
+          success: false,
+          message: "You are offline. Please wait for connection...",
+        });
+        return;
       }
 
       console.log("🏠 Creating room...");
@@ -442,15 +446,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         } else {
           Toast.error(res.message || "Failed to create room");
         }
+        callback?.(res);
       });
     },
     [socket, router, startHeartbeat]
   );
 
   const joinRoom = useCallback(
-    (roomCode: string, playerName: string) => {
+    (roomCode: string, playerName: string, callback?: (res: any) => void) => {
       if (!socket?.connected) {
-        return Toast.success("Connecting to server...");
+        Toast.error("Connecting to server...");
+        callback?.({ success: false, message: "Connecting to server..." });
+        return;
       }
 
       socket.emit("join_room", { roomCode, playerName }, (res: any) => {
@@ -463,6 +470,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         } else {
           Toast.error(res.message || "Failed to join room");
         }
+        callback?.(res);
       });
     },
     [socket, router, startHeartbeat]
@@ -481,7 +489,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const startGame = useCallback(
     (callback?: (res: any) => void) => {
       if (!socket?.connected || !room?.code) {
-        Toast.error("Not connected to room");
+        const errorMsg = "Not connected to room";
+        Toast.error(errorMsg);
+        callback?.({ success: false, message: errorMsg });
         return;
       }
 
@@ -572,14 +582,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     },
     [socket, room, player]
   );
-
-  const leaveRoom = useCallback(() => {
-    console.log("👋 Leaving room");
-    stopHeartbeat();
-    setRoom(null);
-    setPlayer(null);
-    router.push("/");
-  }, [router, stopHeartbeat]);
 
   return (
     <GameContext.Provider
