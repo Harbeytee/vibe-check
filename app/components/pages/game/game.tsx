@@ -48,7 +48,9 @@ export default function Game() {
   const answeredCount = room.answeredQuestions.length;
   const progress = ((answeredCount + 1) / room.totalQuestions) * 100;
 
-  const canFlip = player?.id == room.players[room.currentPlayerIndex].id;
+  // Safety check: ensure currentPlayerIndex is within bounds
+  const currentPlayer = room.players[room.currentPlayerIndex];
+  const canFlip = player?.id === currentPlayer?.id;
 
   const handleFlip = () => {
     // Only the current player should be allowed to flip the card

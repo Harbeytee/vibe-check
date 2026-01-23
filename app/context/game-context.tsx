@@ -11,8 +11,27 @@ import {
 import { io, Socket } from "socket.io-client";
 import { useRouter } from "next/navigation";
 import { GameRoom, Player, GameContextType } from "@/types/interface";
-import { Toast } from "./toast-context";
 import config from "@/lib/config";
+import {
+  stopHeartbeat as stopHeartbeatUtil,
+  startHeartbeat as startHeartbeatUtil,
+  HeartbeatRefs,
+} from "./utils/heartbeat";
+import { setupSocketHandlers } from "./utils/socket-handlers";
+import {
+  createRoom as createRoomUtil,
+  joinRoom as joinRoomUtil,
+  selectPack as selectPackUtil,
+  addCustomQuestion as addCustomQuestionUtil,
+  removeCustomQuestion as removeCustomQuestionUtil,
+} from "./utils/room-operations";
+import {
+  startGame as startGameUtil,
+  flipCard as flipCardUtil,
+  nextQuestion as nextQuestionUtil,
+  getCurrentTurnPlayer as getCurrentTurnPlayerUtil,
+} from "./utils/game-operations";
+import { kickPlayer as kickPlayerUtil } from "./utils/player-operations";
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -24,57 +43,59 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
   const lastHeartbeatTime = useRef<number>(Date.now());
-  const reconnectAttempts = useRef(0);
+  const roomRef = useRef<GameRoom | null>(null);
+  const playerRef = useRef<Player | null>(null);
+  const isConnectedRef = useRef<boolean>(false);
   const maxReconnectAttempts = 5;
-  const HEARTBEAT_INTERVAL = 5000;
-  const MAX_TIME_DRIFT = 10000; // 10 seconds - if heartbeat is delayed by more than this, PC likely slept
 
-  // heartbeat management
+  // Heartbeat management
   const stopHeartbeat = useCallback(() => {
-    if (heartbeatRef.current) {
-      clearInterval(heartbeatRef.current);
-      heartbeatRef.current = null;
-    }
+    stopHeartbeatUtil(heartbeatRef);
   }, []);
 
   const startHeartbeat = useCallback(
     (roomCode: string) => {
-      stopHeartbeat(); // Clear any existing interval
-      lastHeartbeatTime.current = Date.now();
-
-      heartbeatRef.current = setInterval(() => {
-        const now = Date.now();
-        const timeSinceLastHeartbeat = now - lastHeartbeatTime.current;
-
-        // Time drift detection: If interval took much longer than expected, PC likely slept
-        if (timeSinceLastHeartbeat > HEARTBEAT_INTERVAL + MAX_TIME_DRIFT) {
-          console.warn(
-            `⚠️ Time drift detected: ${timeSinceLastHeartbeat}ms (expected ~${HEARTBEAT_INTERVAL}ms). PC may have slept.`
-          );
-
-          // Check if socket is still connected
-          if (socket && !socket.connected) {
-            socket.connect();
-          } else if (socket?.connected && roomCode) {
-            // Socket appears connected but we missed time - verify connection
-            socket.emit("heartbeat", { roomCode }, () => {
-              // If callback fires, connection is alive
-              lastHeartbeatTime.current = Date.now();
-            });
-          }
-        } else {
-          // Normal heartbeat
-          if (socket?.connected && roomCode) {
-            socket.emit("heartbeat", { roomCode });
-            lastHeartbeatTime.current = Date.now();
-          } else {
-            console.warn("⚠️ Cannot send heartbeat - socket disconnected");
-          }
-        }
-      }, HEARTBEAT_INTERVAL);
+      const refs: HeartbeatRefs = {
+        heartbeatRef,
+        lastHeartbeatTime,
+      };
+      startHeartbeatUtil(roomCode, socket, refs);
     },
-    [socket, stopHeartbeat]
+    [socket]
   );
+
+  // Helper functions
+  const handleRoomNotFound = useCallback(() => {
+    stopHeartbeat();
+    setRoom(null);
+    setPlayer(null);
+    router.push("/");
+  }, [router, stopHeartbeat]);
+
+  const handlePlayerRemoved = useCallback(() => {
+    const roomCode = room?.code;
+    stopHeartbeat();
+    setRoom(null);
+    setPlayer(null);
+    if (roomCode) {
+      router.push(`/?${roomCode}`);
+    } else {
+      router.push("/");
+    }
+  }, [room?.code, router, stopHeartbeat]);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+
+  useEffect(() => {
+    playerRef.current = player;
+  }, [player]);
+
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
 
   // Initialize Socket Connection
   useEffect(() => {
@@ -88,260 +109,25 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     setSocket(newSocket);
 
-    let lastSyncTime = Date.now();
-    const SYNC_TIMEOUT = 25000;
-
-    // Connection Status Handlers
-    newSocket.on("connect", () => {
-      setIsConnected(true);
-      reconnectAttempts.current = 0;
-
-      // Attempt to rejoin room if we were in one
-      const savedRoom = room;
-      const savedPlayer = player;
-
-      if (savedRoom?.code && savedPlayer?.name) {
-        newSocket.emit(
-          "rejoin_room",
-          { roomCode: savedRoom.code, playerName: savedPlayer.name },
-          (res: any) => {
-            if (res.success) {
-              setRoom(res.room);
-              setPlayer(res.player);
-              startHeartbeat(res.room.code);
-            } else {
-              handleRoomNotFound();
-            }
-          }
-        );
-      }
+    // Setup socket event handlers
+    const cleanup = setupSocketHandlers({
+      socket: newSocket,
+      roomRef,
+      playerRef,
+      isConnectedRef,
+      setRoom,
+      setPlayer,
+      setIsConnected,
+      router,
+      stopHeartbeat,
+      startHeartbeat,
+      handleRoomNotFound,
+      handlePlayerRemoved,
     });
-
-    newSocket.on("disconnect", (reason) => {
-      Toast.error("Disconnected from server");
-
-      setIsConnected(false);
-      stopHeartbeat();
-      // Don't redirect immediately - let reconnection logic handle it
-    });
-
-    // --- ROOM EVENT LISTENERS ---
-
-    //  Room state sync - detects if player is removed from room
-    newSocket.on("room_state_sync", (syncedRoom: GameRoom) => {
-      lastSyncTime = Date.now(); // Update last sync time
-
-      // Check if I'm still in the room
-      const amIStillInRoom = syncedRoom.players.some(
-        (p: any) => p.id === newSocket.id
-      );
-
-      if (!amIStillInRoom) {
-        Toast.error("You have been disconnected from the room");
-
-        stopHeartbeat();
-        setRoom(null);
-        setPlayer(null);
-        router.push("/");
-        return;
-      }
-
-      // Update with latest room state
-      setRoom(syncedRoom);
-      const myData = syncedRoom.players.find((p: any) => p.id === newSocket.id);
-      if (myData) setPlayer(myData);
-    });
-
-    // 🔴 NEW: Periodic check for missing room_state_sync (room deleted)
-    const syncCheckInterval = setInterval(() => {
-      const now = Date.now();
-      const timeSinceLastSync = now - lastSyncTime;
-
-      // If we haven't received a sync in 25 seconds, room might be deleted
-      if (room?.code && timeSinceLastSync > SYNC_TIMEOUT && isConnected) {
-        Toast.error("Room has been closed");
-
-        stopHeartbeat();
-        setRoom(null);
-        setPlayer(null);
-        router.push(`/?${room.code}`);
-      }
-    }, 5000);
-
-    newSocket.on("room_updated", (updatedRoom: GameRoom) => {
-      const myData = updatedRoom.players.find(
-        (p: any) => p.id === newSocket.id
-      );
-
-      // Check if current player is still in the room if not notify them
-      if (!myData) {
-        // Don't disconnect - let them stay connected to receive redirect event
-        Toast.error("You have been removed from the room");
-        stopHeartbeat();
-        setRoom(null);
-        setPlayer(null);
-        // Redirect to home with room code
-        const currentRoomCode = updatedRoom.code || room?.code;
-        if (currentRoomCode) {
-          router.push(`/?${currentRoomCode}`);
-        } else {
-          router.push("/");
-        }
-        return;
-      }
-
-      setRoom(updatedRoom);
-
-      setPlayer(myData);
-    });
-
-    newSocket.on("game_started", (startedRoom: GameRoom) => {
-      setRoom(startedRoom);
-      router.push(`/game/${startedRoom.code}`);
-    });
-
-    // newSocket.on("game_over", ({ message }: { message: string }) => {
-    //   Toast.success(message);
-    // });
-
-    // newSocket.on("new_host_toast", ({ name }: { name: string }) => {
-    //   Toast.success(`${name} is now the host!`);
-    // });
-
-    newSocket.on(
-      "player_left",
-      ({
-        leavingPlayer,
-        newHost,
-        room,
-        kicked,
-      }: {
-        leavingPlayer: Player;
-        newHost?: Player;
-        room: GameRoom;
-        kicked?: boolean;
-      }) => {
-        // Show different message if player was kicked vs left voluntarily
-        if (kicked) {
-          Toast.error(`${leavingPlayer.name} was kicked from the game`);
-        } else {
-          Toast.error(`${leavingPlayer.name} left the game`);
-        }
-
-        if (newHost) {
-          Toast.success(`${newHost.name} is now the host`);
-        }
-
-        // Update room state in context/store
-        setRoom(room);
-        const myData = room.players.find((p: any) => p.id === newSocket.id);
-        if (myData) {
-          setPlayer(myData);
-        } else {
-          handlePlayerRemoved();
-        }
-      }
-    );
-
-    newSocket.on("error", (data: { message: string }) => {
-      console.error("❌ Server error:", data.message);
-      Toast.error(`Error: ${data.message}`);
-    });
-
-    newSocket.on("room_not_found", ({ roomCode }: { roomCode?: string }) => {
-      Toast.error(`❌ Room ${roomCode} not found`);
-      // Redirect to home with room code if provided
-      if (roomCode) {
-        router.push(`/?${roomCode}`);
-      } else {
-        handleRoomNotFound();
-      }
-    });
-
-    newSocket.on("room_deleted", (data: { message: string }) => {
-      Toast.error(data.message);
-      handleRoomNotFound();
-    });
-
-    // Player removed from room - happens when cleanup removes player after sleep/disconnect
-    newSocket.on(
-      "player_removed_from_room",
-      ({ roomCode, message }: { roomCode: string; message: string }) => {
-        Toast.error(message || "You have been removed from the room");
-        stopHeartbeat();
-        setRoom(null);
-        setPlayer(null);
-        // Redirect to home with room code
-        router.push(`/?${roomCode}`);
-      }
-    );
-
-    // Player kicked by host
-    newSocket.on(
-      "player_kicked",
-      ({ roomCode, message }: { roomCode: string; message: string }) => {
-        // Toast removed - player_left event already shows toast to everyone
-        stopHeartbeat();
-        setRoom(null);
-        setPlayer(null);
-        // Redirect to home with room code
-        router.push(`/?${roomCode}`);
-      }
-    );
-
-    // --- PC SLEEP/WAKE DETECTION ---
-    // Detect when page becomes visible again (PC wakes from sleep)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        // Use current state values via closure
-        const currentRoom = room;
-        const currentPlayer = player;
-        const currentIsConnected = isConnected;
-
-        // If we have a room but socket is disconnected, try to reconnect
-        if (
-          currentRoom?.code &&
-          (!newSocket.connected || !currentIsConnected)
-        ) {
-          if (!newSocket.connected) {
-            newSocket.connect();
-          }
-
-          // Verify we're still in the room after reconnection
-          if (newSocket.connected && currentRoom.code && currentPlayer?.name) {
-            setTimeout(() => {
-              newSocket.emit(
-                "rejoin_room",
-                { roomCode: currentRoom.code, playerName: currentPlayer.name },
-                (res: any) => {
-                  if (res.success) {
-                    setRoom(res.room);
-                    setPlayer(res.player);
-                    startHeartbeat(res.room.code);
-                  } else {
-                    Toast.error("You have been removed from the room");
-                    stopHeartbeat();
-                    setRoom(null);
-                    setPlayer(null);
-                    router.push(`/?${currentRoom.code}`);
-                  }
-                }
-              );
-            }, 1000); // Wait 1 second for connection to stabilize
-          }
-        }
-      }
-    };
-
-    // Listen for visibility changes (PC sleep/wake)
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Cleanup on unmount
     return () => {
-      stopHeartbeat();
-      clearInterval(syncCheckInterval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      newSocket.removeAllListeners();
+      cleanup();
       newSocket.disconnect();
     };
   }, []); // Only run once on mount
@@ -350,14 +136,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!room?.code || !socket?.connected) return;
 
-    // Periodic membership check - detects if player was removed after sleep/disconnect
     const membershipCheckInterval = setInterval(() => {
       if (socket?.connected && room?.code) {
-        // Check if we're still in the room
         socket.emit("check_membership", { roomCode: room.code }, (res: any) => {
           if (!res.success || !res.inRoom) {
-            // Not in room - redirect
-            Toast.error("You have been removed from the room");
             stopHeartbeat();
             setRoom(null);
             setPlayer(null);
@@ -372,176 +154,115 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [room?.code, socket, router, stopHeartbeat]);
 
-  // --- HELPER FUNCTIONS ---
-
-  const handleRoomNotFound = useCallback(() => {
-    stopHeartbeat();
-    setRoom(null);
-    setPlayer(null);
-    router.push("/");
-  }, [router, stopHeartbeat]);
-
-  const handlePlayerRemoved = useCallback(() => {
-    Toast.error("You have been removed from the room");
-    const roomCode = room?.code;
-    stopHeartbeat();
-    setRoom(null);
-    setPlayer(null);
-    // Redirect to home with room code if available
-    if (roomCode) {
-      router.push(`/?${roomCode}`);
-    } else {
-      router.push("/");
-    }
-  }, [room?.code, router, stopHeartbeat]);
-
-  // --- GAME ACTIONS ---
-
+  // Room Operations
   const createRoom = useCallback(
     (playerName: string, callback?: (res: any) => void) => {
-      if (!socket?.connected) {
-        Toast.error("You are offline. Please wait for connection...");
-        callback?.({
-          success: false,
-          message: "You are offline. Please wait for connection...",
-        });
-        return;
-      }
-
-      socket.emit("create_room", { playerName }, (res: any) => {
-        if (res.success) {
-          setRoom(res.room);
-          setPlayer(res.player);
-          startHeartbeat(res.room.code);
-          router.push(`/lobby/${res.room.code}`);
-        } else {
-          Toast.error(res.message || "Failed to create room");
-        }
-        callback?.(res);
-      });
+      createRoomUtil(
+        playerName,
+        {
+          socket,
+          room,
+          setRoom,
+          setPlayer,
+          router,
+          startHeartbeat,
+        },
+        callback
+      );
     },
-    [socket, router, startHeartbeat]
+    [socket, room, router, startHeartbeat]
   );
 
   const joinRoom = useCallback(
     (roomCode: string, playerName: string, callback?: (res: any) => void) => {
-      if (!socket?.connected) {
-        Toast.error("Connecting to server...");
-        callback?.({ success: false, message: "Connecting to server..." });
-        return;
-      }
-
-      socket.emit("join_room", { roomCode, playerName }, (res: any) => {
-        if (res.success) {
-          setRoom(res.room);
-          setPlayer(res.player);
-          startHeartbeat(res.room.code);
-          router.push(`/lobby/${res.room.code}`);
-        } else {
-          Toast.error(res.message || "Failed to join room");
-        }
-        callback?.(res);
-      });
+      joinRoomUtil(
+        roomCode,
+        playerName,
+        {
+          socket,
+          room,
+          setRoom,
+          setPlayer,
+          router,
+          startHeartbeat,
+        },
+        callback
+      );
     },
-    [socket, router, startHeartbeat]
+    [socket, room, router, startHeartbeat]
   );
 
   const selectPack = useCallback(
     (packId: string) => {
-      if (!socket?.connected || !room?.code) return;
-
-      socket.emit("select_pack", { roomCode: room.code, packId });
+      selectPackUtil(packId, {
+        socket,
+        room,
+        setRoom,
+        setPlayer,
+        router,
+        startHeartbeat,
+      });
     },
-    [socket, room]
+    [socket, room, router, startHeartbeat]
   );
 
+  const addCustomQuestion = useCallback(
+    (question: string) => {
+      addCustomQuestionUtil(question, {
+        socket,
+        room,
+        setRoom,
+        setPlayer,
+        router,
+        startHeartbeat,
+      });
+    },
+    [socket, room, router, startHeartbeat]
+  );
+
+  const removeCustomQuestion = useCallback(
+    (questionId: number) => {
+      removeCustomQuestionUtil(questionId, {
+        socket,
+        room,
+        setRoom,
+        setPlayer,
+        router,
+        startHeartbeat,
+      });
+    },
+    [socket, room, router, startHeartbeat]
+  );
+
+  // Game Operations
   const startGame = useCallback(
     (callback?: (res: any) => void) => {
-      if (!socket?.connected || !room?.code) {
-        const errorMsg = "Not connected to room";
-        Toast.error(errorMsg);
-        callback?.({ success: false, message: errorMsg });
-        return;
-      }
-
-      socket.emit("start_game", { roomCode: room.code }, (res: any) => {
-        if (res.success) {
-        } else {
-          Toast.error(res.message || "Failed to start game");
-        }
-        callback?.(res);
-      });
+      startGameUtil({ socket, room }, callback);
     },
     [socket, room]
   );
 
   const flipCard = useCallback(() => {
-    if (!socket?.connected || !room?.code) {
-      Toast.error("Not connected to room");
-      return;
-    }
-
-    socket.emit("flip_card", { roomCode: room.code });
+    flipCardUtil({ socket, room });
   }, [socket, room]);
 
   const nextQuestion = useCallback(() => {
-    if (!socket?.connected || !room?.code) {
-      Toast.error("Not connected to room");
-      return;
-    }
-
-    socket.emit("next_question", { roomCode: room.code });
+    nextQuestionUtil({ socket, room });
   }, [socket, room]);
 
-  const addCustomQuestion = useCallback(
-    (question: string) => {
-      if (!socket?.connected || !room?.code) return;
-
-      socket.emit("add_custom_question", { roomCode: room.code, question });
-    },
-    [socket, room]
-  );
-
-  const removeCustomQuestion = useCallback(
-    (questionId: number) => {
-      if (!socket?.connected || !room?.code) return;
-
-      socket.emit("remove_custom_question", {
-        roomCode: room.code,
-        questionId,
-      });
-    },
-    [socket, room]
-  );
-
   const getCurrentTurnPlayer = useCallback((): Player | null => {
-    if (!room || room.currentPlayerIndex === undefined) return null;
-    return room.players[room.currentPlayerIndex] || null;
+    return getCurrentTurnPlayerUtil(room);
   }, [room]);
 
+  // Player Operations
   const kickPlayer = useCallback(
     (playerIdToKick: string) => {
-      if (!socket?.connected || !room?.code) {
-        Toast.error("Not connected to room");
-        return;
-      }
-
-      if (!player?.isHost) {
-        Toast.error("Only the host can kick players");
-        return;
-      }
-
-      socket.emit(
-        "kick_player",
-        { roomCode: room.code, playerIdToKick },
-        (res: any) => {
-          if (res.success) {
-            Toast.success(res.message || "Player kicked successfully");
-          } else {
-            Toast.error(res.message || "Failed to kick player");
-          }
-        }
-      );
+      kickPlayerUtil(playerIdToKick, {
+        socket,
+        room,
+        player,
+        setRoom,
+      });
     },
     [socket, room, player]
   );
