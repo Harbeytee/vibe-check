@@ -21,13 +21,17 @@ export default function CreateRoomForm({
   const [isCreating, setIsCreating] = useState(false);
 
   const handleCreate = () => {
-    setIsCreating(true);
     if (!playerName.trim()) {
       setError("Please enter your name");
-      setIsCreating(false);
       return;
     }
-    createRoom(playerName.trim());
+    setIsCreating(true);
+    createRoom(playerName.trim(), (res: any) => {
+      // Reset loading state if operation failed
+      if (!res.success) {
+        setIsCreating(false);
+      }
+    });
   };
 
   if (mode === "create")

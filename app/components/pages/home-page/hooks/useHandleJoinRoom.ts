@@ -18,20 +18,23 @@ export default function useHandleJoinRoom(
   const [isJoining, setIsJoining] = useState(false);
 
   const handleJoin = async (code?: string) => {
-    setIsJoining(true);
     const codeToUse = code || roomCode;
     if (!playerName.trim()) {
       setError("Please enter your name");
-      setIsJoining(false);
       return;
     }
     if (!codeToUse.trim()) {
       setError("Please enter a room code");
-      setIsJoining(false);
       return;
     }
 
-    joinRoom(codeToUse.trim(), playerName.trim());
+    setIsJoining(true);
+    joinRoom(codeToUse.trim(), playerName.trim(), (res: any) => {
+      // Reset loading state if operation failed
+      if (!res.success) {
+        setIsJoining(false);
+      }
+    });
   };
 
   const handleScan = (result: any) => {

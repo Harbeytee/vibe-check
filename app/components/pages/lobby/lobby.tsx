@@ -24,6 +24,7 @@ export default function Lobby() {
     removeCustomQuestion,
     startGame,
     player,
+    kickPlayer,
   } = useGame();
 
   const [showCustom, setShowCustom] = useState(false);
@@ -72,7 +73,12 @@ export default function Lobby() {
         <InvitePlayers roomCode={room.code} />
 
         {/* players section */}
-        <PlayerList players={room.players} />
+        <PlayerList
+          players={room.players}
+          currentPlayer={player}
+          onKick={kickPlayer}
+          showKickButton
+        />
 
         {/* Pack Selection - Host Only */}
 

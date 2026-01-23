@@ -1,15 +1,17 @@
 import { motion } from "framer-motion";
 import PlayerList from "../lobby/player-list";
 import { Button } from "@/components/ui/button";
-import { Home, RotateCcw } from "lucide-react";
+import { Home } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Player } from "@/types/interface";
 
 export default function FinishedGame({
   players,
+  currentPlayer,
   totalQuestions,
 }: {
   players: Player[];
+  currentPlayer: Player | null;
   totalQuestions: number;
 }) {
   const router = useRouter();
@@ -35,7 +37,7 @@ export default function FinishedGame({
           You answered all {totalQuestions} questions!
         </p>
 
-        <PlayerList players={players} />
+        <PlayerList players={players} currentPlayer={currentPlayer} />
 
         <div className="flex flex-col sm:flex-row gap-4">
           <Button
