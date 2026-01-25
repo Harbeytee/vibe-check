@@ -290,7 +290,6 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
 
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
-  // Cleanup function
   return () => {
     stopHeartbeat();
     clearInterval(syncCheckInterval);
