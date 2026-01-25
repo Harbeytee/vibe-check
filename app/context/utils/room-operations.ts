@@ -35,7 +35,12 @@ export function createRoom(
       startHeartbeat(res.room.code);
       router.push(`/lobby/${res.room.code}`);
     } else {
-      Toast.error(res.message || "Failed to create room");
+      // Show specific toast for high traffic
+      if (res.highTraffic) {
+        Toast.error("High traffic detected. Please try again in a moment.");
+      } else {
+        Toast.error(res.message || "Failed to create room");
+      }
     }
     callback?.(res);
   });
