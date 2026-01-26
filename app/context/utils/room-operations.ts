@@ -2,6 +2,7 @@ import { Socket } from "socket.io-client";
 import { GameRoom, Player } from "@/types/interface";
 import { Toast } from "../toast-context";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { analytics } from "./analytics";
 
 export interface RoomOperationsConfig {
   socket: Socket | null;
@@ -33,6 +34,7 @@ export function createRoom(
       setRoom(res.room);
       setPlayer(res.player);
       startHeartbeat(res.room.code);
+      analytics.roomCreated(res.room.code);
       router.push(`/lobby/${res.room.code}`);
     } else {
       // Show specific toast for high traffic
@@ -65,6 +67,7 @@ export function joinRoom(
       setRoom(res.room);
       setPlayer(res.player);
       startHeartbeat(res.room.code);
+      analytics.roomJoined(res.room.code, res.room.players?.length || 0);
       router.push(`/lobby/${res.room.code}`);
     } else {
       Toast.error(res.message || "Failed to join room");
@@ -86,6 +89,20 @@ export function selectPack(packId: string, config: RoomOperationsConfig) {
 
   // Emit to server (server will sync the real state via room_updated event)
   socket.emit("select_pack", { roomCode: room.code, packId });
+
+  // Track pack selection
+  const packNames: Record<string, string> = {
+    friends: "Friends Pack",
+    family: "Family Pack",
+    couples: "Couples Pack",
+    work: "Work Buddies Pack",
+    party: "Party Pack",
+    deep: "Deep Talks Pack",
+  };
+  analytics.packSelected(
+    packNames[packId] || packId,
+    room.players?.length || 0
+  );
 }
 
 export function addCustomQuestion(
@@ -97,6 +114,7 @@ export function addCustomQuestion(
   if (!socket?.connected || !room?.code) return;
 
   socket.emit("add_custom_question", { roomCode: room.code, question });
+  analytics.customQuestionAdded();
 }
 
 export function removeCustomQuestion(

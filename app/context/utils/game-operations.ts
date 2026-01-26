@@ -1,6 +1,8 @@
 import { Socket } from "socket.io-client";
 import { GameRoom, Player } from "@/types/interface";
 import { Toast } from "../toast-context";
+import { analytics } from "./analytics";
+import { getPackById } from "@/data/packs";
 
 export interface GameOperationsConfig {
   socket: Socket | null;
@@ -23,6 +25,10 @@ export function startGame(
   socket.emit("start_game", { roomCode: room.code }, (res: any) => {
     if (res.success) {
       // Game started successfully
+      const pack = getPackById(room.selectedPack || "");
+      const packName = pack?.name || room.selectedPack || "";
+      const hasCustomQuestions = (room.customQuestions?.length || 0) > 0;
+      analytics.gameStarted(packName, hasCustomQuestions);
     } else {
       Toast.error(res.message || "Failed to start game");
     }
@@ -52,9 +58,7 @@ export function nextQuestion(config: GameOperationsConfig) {
   socket.emit("next_question", { roomCode: room.code });
 }
 
-export function getCurrentTurnPlayer(
-  room: GameRoom | null
-): Player | null {
+export function getCurrentTurnPlayer(room: GameRoom | null): Player | null {
   if (!room || room.currentPlayerIndex === undefined) return null;
   return room.players[room.currentPlayerIndex] || null;
 }
