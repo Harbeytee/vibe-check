@@ -2,7 +2,7 @@
 import { gamePacks } from "@/data/packs";
 import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import PlayerList from "../lobby/player-list";
 import FinishedGame from "./finished-game";
 import { useGame } from "@/context/game-context";
@@ -10,6 +10,7 @@ import NextButton from "./next-button";
 import CardSection from "./card-section";
 import Header from "./header";
 import TurnIndicator from "./turn-indicator";
+import { analytics } from "@/context/utils/analytics";
 
 export default function Game() {
   const router = useRouter();
@@ -23,8 +24,28 @@ export default function Game() {
   } = useGame();
 
   const { code } = useParams();
+  const hasTrackedCompletionRef = useRef<boolean>(false);
 
   const currentTurnPlayer = getCurrentTurnPlayer();
+
+  // Track game completion
+  useEffect(() => {
+    if (room?.isFinished && !hasTrackedCompletionRef.current) {
+      const playerCount = room.players?.length || 0;
+      const hasCustomQuestions = (room.customQuestions?.length || 0) > 0;
+      analytics.gameCompleted(
+        playerCount,
+        hasCustomQuestions,
+        room.totalQuestions
+      );
+      hasTrackedCompletionRef.current = true;
+    }
+  }, [
+    room?.isFinished,
+    room?.players,
+    room?.customQuestions,
+    room?.totalQuestions,
+  ]);
 
   useEffect(() => {
     if (room) {
@@ -37,9 +58,6 @@ export default function Game() {
       router.push(`/${code ? `?${code}` : ""}`);
     }
   }, [room, router]);
-
-  // Verify room on mount
-  // useRoomVerification();
 
   if (!room) return null;
 
