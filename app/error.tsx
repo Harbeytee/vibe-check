@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Home } from "lucide-react";
 
@@ -10,7 +11,7 @@ export default function Error({
   error: Error;
   reset: () => void;
 }) {
-  console.error("App error:", error);
+  Sentry.captureException(error);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-background">

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { RefObject } from "react";
 import { Socket } from "socket.io-client";
 import { GameRoom, Player } from "@/types/interface";
@@ -202,7 +203,9 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
   );
 
   socket.on("connect_error", (error) => {
-    console.error("❌ Connection error:", error.message);
+    Sentry.captureException(error, {
+      tags: { source: "socket", event: "connect_error" },
+    });
     // Don't show toast for connection errors - socket.io will handle reconnection
     // Only update connection state
     setIsConnected(false);
@@ -212,7 +215,10 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
   });
 
   socket.on("error", (data: { message: string }) => {
-    console.error("❌ Server error:", data.message);
+    Sentry.captureMessage(`Socket error: ${data.message}`, {
+      level: "error",
+      tags: { source: "socket", event: "error" },
+    });
     Toast.error(`Error: ${data.message}`);
   });
 
