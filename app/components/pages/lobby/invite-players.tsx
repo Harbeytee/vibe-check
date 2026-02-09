@@ -1,12 +1,9 @@
-import { Check, Copy, QrCode, Share2, Users } from "lucide-react";
-import { Button } from "../../ui/button";
+import { QrCode, Users } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion } from "framer-motion";
-import { useState } from "react";
 import ShareOptionsPopover from "./share-options-popover";
 
 export default function InvitePlayers({ roomCode }: { roomCode: string }) {
-  const [showQR, setShowQR] = useState(false);
   const shareUrl = `${window.location.origin}/join/${roomCode}`;
 
   return (

@@ -1,7 +1,12 @@
 import { Socket } from "socket.io-client";
-import { GameRoom, Player } from "@/types/interface";
+import { GameRoom, Player, PackType } from "@/types/interface";
 import { Toast } from "../toast-context";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { analytics } from "./analytics";
+import type {
+  CreateRoomResponse,
+  JoinRoomResponse,
+} from "@/types/socket-responses";
 
 export interface RoomOperationsConfig {
   socket: Socket | null;
@@ -15,7 +20,7 @@ export interface RoomOperationsConfig {
 export function createRoom(
   playerName: string,
   config: RoomOperationsConfig,
-  callback?: (res: any) => void
+  callback?: (res: CreateRoomResponse) => void
 ) {
   const { socket, setRoom, setPlayer, router, startHeartbeat } = config;
 
@@ -28,11 +33,12 @@ export function createRoom(
     return;
   }
 
-  socket.emit("create_room", { playerName }, (res: any) => {
-    if (res.success) {
+  socket.emit("create_room", { playerName }, (res: CreateRoomResponse) => {
+    if (res.success && res.room && res.player) {
       setRoom(res.room);
       setPlayer(res.player);
       startHeartbeat(res.room.code);
+      analytics.roomCreated(res.room.code);
       router.push(`/lobby/${res.room.code}`);
     } else {
       // Show specific toast for high traffic
@@ -50,7 +56,7 @@ export function joinRoom(
   roomCode: string,
   playerName: string,
   config: RoomOperationsConfig,
-  callback?: (res: any) => void
+  callback?: (res: JoinRoomResponse) => void
 ) {
   const { socket, setRoom, setPlayer, router, startHeartbeat } = config;
 
@@ -60,17 +66,22 @@ export function joinRoom(
     return;
   }
 
-  socket.emit("join_room", { roomCode, playerName }, (res: any) => {
-    if (res.success) {
-      setRoom(res.room);
-      setPlayer(res.player);
-      startHeartbeat(res.room.code);
-      router.push(`/lobby/${res.room.code}`);
-    } else {
-      Toast.error(res.message || "Failed to join room");
+  socket.emit(
+    "join_room",
+    { roomCode, playerName },
+    (res: JoinRoomResponse) => {
+      if (res.success && res.room && res.player) {
+        setRoom(res.room);
+        setPlayer(res.player);
+        startHeartbeat(res.room.code);
+        analytics.roomJoined(res.room.code, res.room.players?.length || 0);
+        router.push(`/lobby/${res.room.code}`);
+      } else {
+        Toast.error(res.message || "Failed to join room");
+      }
+      callback?.(res);
     }
-    callback?.(res);
-  });
+  );
 }
 
 export function selectPack(packId: string, config: RoomOperationsConfig) {
@@ -81,11 +92,25 @@ export function selectPack(packId: string, config: RoomOperationsConfig) {
   // Optimistic UI update - update selected pack immediately
   setRoom({
     ...room,
-    selectedPack: packId as any, // Type assertion for PackType
+    selectedPack: packId as PackType,
   });
 
   // Emit to server (server will sync the real state via room_updated event)
   socket.emit("select_pack", { roomCode: room.code, packId });
+
+  // Track pack selection
+  const packNames: Record<string, string> = {
+    friends: "Friends Pack",
+    family: "Family Pack",
+    couples: "Couples Pack",
+    work: "Work Buddies Pack",
+    party: "Party Pack",
+    deep: "Deep Talks Pack",
+  };
+  analytics.packSelected(
+    packNames[packId] || packId,
+    room.players?.length || 0
+  );
 }
 
 export function addCustomQuestion(
@@ -97,6 +122,7 @@ export function addCustomQuestion(
   if (!socket?.connected || !room?.code) return;
 
   socket.emit("add_custom_question", { roomCode: room.code, question });
+  analytics.customQuestionAdded();
 }
 
 export function removeCustomQuestion(

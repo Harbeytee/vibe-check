@@ -1,4 +1,9 @@
 import { Socket } from "socket.io-client";
+import type {
+  CreateRoomResponse,
+  JoinRoomResponse,
+  StartGameResponse,
+} from "./socket-responses";
 
 export type PackType =
   | "friends"
@@ -53,16 +58,19 @@ export interface GameState {
 export interface GameContextType {
   room: GameRoom | null;
   currentPlayer: Player | null;
-  createRoom: (playerName: string, callback?: (res: any) => void) => void;
+  createRoom: (
+    playerName: string,
+    callback?: (res: CreateRoomResponse) => void
+  ) => void;
   joinRoom: (
     roomCode: string,
     playerName: string,
-    callback?: (res: any) => void
+    callback?: (res: JoinRoomResponse) => void
   ) => void;
   selectPack: (packId: PackType) => void;
   addCustomQuestion: (question: string) => void;
   removeCustomQuestion: (index: number) => void;
-  startGame: (callback?: (res: any) => void) => void;
+  startGame: (callback?: (res: StartGameResponse) => void) => void;
   nextQuestion: () => void;
   flipCard: () => void;
   kickPlayer: (playerId: string) => void;

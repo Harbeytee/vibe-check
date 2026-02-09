@@ -3,6 +3,7 @@ import { Socket } from "socket.io-client";
 import { GameRoom, Player } from "@/types/interface";
 import { Toast } from "../toast-context";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import type { RejoinRoomResponse } from "@/types/socket-responses";
 
 export interface SocketHandlersConfig {
   socket: Socket;
@@ -53,8 +54,8 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
       socket.emit(
         "rejoin_room",
         { roomCode: savedRoom.code, playerName: savedPlayer.name },
-        (res: any) => {
-          if (res.success) {
+        (res: RejoinRoomResponse) => {
+          if (res.success && res.room && res.player) {
             setRoom(res.room);
             setPlayer(res.player);
             startHeartbeat(res.room.code);
@@ -84,7 +85,7 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
 
     // Check if I'm still in the room
     const amIStillInRoom = syncedRoom.players.some(
-      (p: any) => p.id === socket.id
+      (p: Player) => p.id === socket.id
     );
 
     if (!amIStillInRoom) {
@@ -98,7 +99,7 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
 
     // Update with latest room state
     setRoom(syncedRoom);
-    const myData = syncedRoom.players.find((p: any) => p.id === socket.id);
+    const myData = syncedRoom.players.find((p: Player) => p.id === socket.id);
     if (myData) setPlayer(myData);
   });
 
@@ -131,7 +132,7 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
     // Update lastSyncTime since room_updated also indicates room is active
     lastSyncTime = Date.now();
 
-    const myData = updatedRoom.players.find((p: any) => p.id === socket.id);
+    const myData = updatedRoom.players.find((p: Player) => p.id === socket.id);
 
     // Check if current player is still in the room if not notify them
     if (!myData) {
@@ -191,7 +192,7 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
       }
 
       setRoom(room);
-      const myData = room.players.find((p: any) => p.id === socket.id);
+      const myData = room.players.find((p: Player) => p.id === socket.id);
       if (myData) {
         setPlayer(myData);
       } else {
@@ -268,8 +269,8 @@ export function setupSocketHandlers(config: SocketHandlersConfig) {
             socket.emit(
               "rejoin_room",
               { roomCode: currentRoom.code, playerName: currentPlayer.name },
-              (res: any) => {
-                if (res.success) {
+              (res: RejoinRoomResponse) => {
+                if (res.success && res.room && res.player) {
                   setRoom(res.room);
                   setPlayer(res.player);
                   startHeartbeat(res.room.code);

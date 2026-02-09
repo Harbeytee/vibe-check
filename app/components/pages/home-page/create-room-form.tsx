@@ -26,7 +26,7 @@ export default function CreateRoomForm({
       return;
     }
     setIsCreating(true);
-    createRoom(playerName.trim(), (res: any) => {
+    createRoom(playerName.trim(), (res) => {
       // Reset loading state if operation failed
       if (!res.success) {
         setIsCreating(false);
