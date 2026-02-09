@@ -55,7 +55,7 @@ export default function Lobby() {
       Toast.error("Make sure you have at least 2 players and a pack selected!");
     }
     setIsStarting(true);
-    startGame((res: any) => {
+    startGame((res) => {
       // This logic only runs for the Host who clicked
       if (!res.success) {
         Toast.error(res.message);

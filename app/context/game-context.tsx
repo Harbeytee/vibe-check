@@ -32,6 +32,12 @@ import {
   getCurrentTurnPlayer as getCurrentTurnPlayerUtil,
 } from "./utils/game-operations";
 import { kickPlayer as kickPlayerUtil } from "./utils/player-operations";
+import type {
+  CreateRoomResponse,
+  JoinRoomResponse,
+  StartGameResponse,
+  CheckMembershipResponse,
+} from "@/types/socket-responses";
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -138,14 +144,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     const membershipCheckInterval = setInterval(() => {
       if (socket?.connected && room?.code) {
-        socket.emit("check_membership", { roomCode: room.code }, (res: any) => {
-          if (!res.success || !res.inRoom) {
-            stopHeartbeat();
-            setRoom(null);
-            setPlayer(null);
-            router.push(`/?${room.code}`);
+        socket.emit(
+          "check_membership",
+          { roomCode: room.code },
+          (res: CheckMembershipResponse) => {
+            if (!res.success || !res.inRoom) {
+              stopHeartbeat();
+              setRoom(null);
+              setPlayer(null);
+              router.push(`/?${room.code}`);
+            }
           }
-        });
+        );
       }
     }, 10000); // Check every 10 seconds
 
@@ -156,7 +166,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   // Room Operations
   const createRoom = useCallback(
-    (playerName: string, callback?: (res: any) => void) => {
+    (playerName: string, callback?: (res: CreateRoomResponse) => void) => {
       createRoomUtil(
         playerName,
         {
@@ -174,7 +184,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const joinRoom = useCallback(
-    (roomCode: string, playerName: string, callback?: (res: any) => void) => {
+    (
+      roomCode: string,
+      playerName: string,
+      callback?: (res: JoinRoomResponse) => void
+    ) => {
       joinRoomUtil(
         roomCode,
         playerName,
@@ -236,7 +250,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   // Game Operations
   const startGame = useCallback(
-    (callback?: (res: any) => void) => {
+    (callback?: (res: StartGameResponse) => void) => {
       startGameUtil({ socket, room }, callback);
     },
     [socket, room]

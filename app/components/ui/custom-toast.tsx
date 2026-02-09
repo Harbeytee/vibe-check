@@ -12,15 +12,13 @@ export const CustomToast = ({ message, variant }: CustomToastProps) => {
     success: {
       background: "bg-green-600",
       color: "text-white",
-      icon: "check-circle-filled",
     },
     error: {
       background: "bg-red-500",
       color: "text-white",
-      icon: "error-triangle-filled",
     },
   };
-  const { background, color, icon } = toastStyles[variant];
+  const { background, color } = toastStyles[variant];
 
   return (
     <div

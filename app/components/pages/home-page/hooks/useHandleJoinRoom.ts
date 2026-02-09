@@ -29,7 +29,7 @@ export default function useHandleJoinRoom(
     }
 
     setIsJoining(true);
-    joinRoom(codeToUse.trim(), playerName.trim(), (res: any) => {
+    joinRoom(codeToUse.trim(), playerName.trim(), (res) => {
       // Reset loading state if operation failed
       if (!res.success) {
         setIsJoining(false);
@@ -37,8 +37,8 @@ export default function useHandleJoinRoom(
     });
   };
 
-  const handleScan = (result: any) => {
-    if (result && result[0]?.rawValue) {
+  const handleScan = (result: { rawValue: string }[] | undefined) => {
+    if (result?.[0]?.rawValue) {
       const scannedValue = result[0].rawValue;
       // Extract room code from URL or use directly
       let code = scannedValue;

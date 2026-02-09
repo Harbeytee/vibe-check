@@ -1,6 +1,7 @@
 import { Socket } from "socket.io-client";
 import { GameRoom, Player } from "@/types/interface";
 import { Toast } from "../toast-context";
+import type { KickPlayerResponse } from "@/types/socket-responses";
 
 export interface PlayerOperationsConfig {
   socket: Socket | null;
@@ -31,7 +32,9 @@ export function kickPlayer(
 
   if (playerToKick) {
     const updatedPlayers = room.players.filter((p) => p.id !== playerIdToKick);
-    const kickedPlayerIdx = room.players.findIndex((p) => p.id === playerIdToKick);
+    const kickedPlayerIdx = room.players.findIndex(
+      (p) => p.id === playerIdToKick
+    );
     let newCurrentPlayerIndex = room.currentPlayerIndex;
     const remainingCount = updatedPlayers.length;
 
@@ -52,7 +55,8 @@ export function kickPlayer(
       players: updatedPlayers,
       currentPlayerIndex: newCurrentPlayerIndex,
       // Reset flipped state if current player was kicked
-      isFlipped: kickedPlayerIdx === room.currentPlayerIndex ? false : room.isFlipped,
+      isFlipped:
+        kickedPlayerIdx === room.currentPlayerIndex ? false : room.isFlipped,
     });
   }
 
@@ -60,7 +64,7 @@ export function kickPlayer(
   socket.emit(
     "kick_player",
     { roomCode: room.code, playerIdToKick },
-    (res: any) => {
+    (res: KickPlayerResponse) => {
       if (!res.success) {
         // Rollback optimistic update if server rejects
         setRoom(previousRoomState);

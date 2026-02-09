@@ -90,7 +90,7 @@ export default function JoinRoomForm({
                   {scanning && (
                     <Scanner
                       onScan={handleScan}
-                      onError={(error: any) => Toast.error(error)}
+                      onError={(error) => Toast.error(error as string)}
                       constraints={{ facingMode: "environment" }}
                       styles={{
                         container: {
