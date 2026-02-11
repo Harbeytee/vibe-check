@@ -32,6 +32,7 @@ Vibe Check is a turn-based multiplayer game where players:
 - ✏️ **Custom Questions** - Add your own questions to personalize the game
 - 👥 **Player Management** - Host controls to manage players and kick if needed
 - 📊 **Analytics** - Google Analytics integration for tracking game events
+- 🐛 **Error Logging** - Sentry integration for client- and server-side error tracking
 - 🔄 **Auto-reconnection** - Handles disconnections and reconnections gracefully
 - 💓 **Heartbeat System** - Maintains connection health with periodic checks
 
@@ -55,6 +56,7 @@ Vibe Check is a turn-based multiplayer game where players:
 
 - **QR Code** - QR code generation and scanning (`qrcode.react`, `@yudiel/react-qr-scanner`)
 - **Google Analytics** - Event tracking via `@next/third-parties`
+- **Sentry** - Error monitoring and crash reporting (`@sentry/nextjs`)
 - **Class Variance Authority** - Component variant management
 - **clsx & tailwind-merge** - Conditional class name utilities
 
@@ -90,6 +92,7 @@ pnpm install
 ```env
 NEXT_PUBLIC_SOCKET_URL=your_socket_server_url
 NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=your_google_analytics_id
+NEXT_PUBLIC_SENTRY_DSN=your_sentry_dsn   # Optional - for error logging
 ```
 
 4. Run the development server:
@@ -159,6 +162,16 @@ The app tracks the following events via Google Analytics:
 - `game_completed` - When a game finishes (includes player count, custom questions, total questions)
 - `custom_question_added` - When a custom question is added
 
+### Error Logging (Sentry)
+
+Sentry is used for client- and server-side error tracking so issues can be triaged in one place. When a DSN is set, the app reports:
+
+- **Unhandled errors** - Caught automatically by the Sentry SDK
+- **Error boundary** - Errors that hit the root error boundary (`app/error.tsx`)
+- **Socket layer** - Connection failures (`connect_error`) and server-emitted errors
+
+Google Analytics is only loaded in production; Sentry `sendGAEvent` calls in dev just log a console warning and do not throw. See `docs/SENTRY.md` for full setup, env vars, and backend (vybe-check-api) integration.
+
 ### Connection Management
 
 - **Heartbeat System** - Periodic checks to maintain connection health
@@ -181,10 +194,13 @@ The app tracks the following events via Google Analytics:
 
 ## 🌐 Environment Variables
 
-| Variable                          | Description                                      | Required |
-| --------------------------------- | ------------------------------------------------ | -------- |
-| `NEXT_PUBLIC_SOCKET_URL`          | WebSocket server URL for real-time communication | Yes      |
-| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | Google Analytics measurement ID                  | No       |
+| Variable                          | Description                                        | Required |
+| --------------------------------- | -------------------------------------------------- | -------- |
+| `NEXT_PUBLIC_SOCKET_URL`          | WebSocket server URL for real-time communication   | Yes      |
+| `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` | Google Analytics measurement ID                    | No       |
+| `NEXT_PUBLIC_SENTRY_DSN`          | Sentry DSN for client-side error logging           | No       |
+| `SENTRY_DSN`                      | Sentry DSN for server-side (build/instrumentation) | No       |
+| `SENTRY_ORG` / `SENTRY_PROJECT`   | Used by Sentry build plugin for source map uploads | No       |
 
 ## 🎨 Styling
 
