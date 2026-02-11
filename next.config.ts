@@ -11,7 +11,7 @@ export default withSentryConfig(nextConfig, {
 
   org: "abby-gy",
 
-  project: "vyb-check",
+  project: "vybe-check",
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
@@ -40,5 +40,5 @@ export default withSentryConfig(nextConfig, {
       // Automatically tree-shake Sentry logger statements to reduce bundle size
       removeDebugLogging: true,
     },
-  }
+  },
 });
