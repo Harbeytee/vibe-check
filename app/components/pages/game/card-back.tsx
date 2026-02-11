@@ -10,8 +10,7 @@ const CardBack = ({
 }) => {
   return (
     <motion.div
-      // className="relative w-80 h-[480px] rounded-[2rem] overflow-hidden border shadow-2xl flex flex-col items-center justify-center p-8 bg-gradient-to-br from-neutral-900 via-neutral-950 to-black"
-      className={`absolute inset-0 border-primary border border-[hsla(24,85%,60%,0.3)] rounded-3xl bg-gradient-to-br ${""} shadow-2xl flex flex-col items-center justify-center p-8`}
+      className={`absolute z-[0] inset-0 border-primary border border-[hsla(24,85%,60%,0.3)] rounded-3xl bg-gradient-to-br ${""} shadow-2xl flex flex-col items-center justify-center p-8`}
       style={{
         backfaceVisibility: "hidden",
         WebkitBackfaceVisibility: "hidden",
