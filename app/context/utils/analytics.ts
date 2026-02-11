@@ -12,10 +12,7 @@ export const trackEvent = (
   eventName: GameEventName,
   parameters?: Record<string, string | number | boolean>
 ) => {
-  sendGAEvent({
-    event: eventName,
-    ...parameters,
-  });
+  sendGAEvent("event", eventName, parameters ?? {});
 };
 
 // Game-specific tracking
