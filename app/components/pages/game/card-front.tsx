@@ -7,7 +7,7 @@ export default function CardFront({
 }) {
   return (
     <div
-      className="absolute inset-0 rounded-3xl bg-gradient-to-br from-card to-card/80 shadow-2xl flex flex-col items-center justify-center p-8 border border-border/50"
+      className="absolute z-50 inset-0 rounded-3xl bg-gradient-to-br from-card to-card/80 shadow-2xl flex flex-col items-center justify-center p-8 border border-border/50"
       style={{
         backfaceVisibility: "hidden",
         WebkitBackfaceVisibility: "hidden",

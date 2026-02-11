@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import ShareOptionsPopover from "./share-options-popover";
 
 export default function InvitePlayers({ roomCode }: { roomCode: string }) {
-  const shareUrl = `${window.location.origin}/join/${roomCode}`;
+  const shareUrl = `${window.location.origin}/?${roomCode}`;
 
   return (
     <motion.div

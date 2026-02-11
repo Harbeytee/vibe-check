@@ -39,17 +39,25 @@ export default function useHandleJoinRoom(
 
   const handleScan = (result: { rawValue: string }[] | undefined) => {
     if (result?.[0]?.rawValue) {
-      const scannedValue = result[0].rawValue;
-      // Extract room code from URL or use directly
-      let code = scannedValue;
-      if (scannedValue.includes("/join/")) {
-        code = scannedValue.split("/join/").pop() || "";
+      const scannedValue = result[0].rawValue.trim();
+      let code: string | null = null;
+
+      try {
+        if (scannedValue.includes("?")) {
+          const url = new URL(scannedValue);
+          const params = url.searchParams;
+          code = params.get("code") ?? params.keys().next().value ?? null;
+        } else {
+          code = scannedValue;
+        }
+      } catch {
+        code = scannedValue;
       }
+
       if (code) {
         setRoomCode(code.toUpperCase());
         setScanning(false);
         setJoinMethod("code");
-        // Auto-join if name is already entered
         if (playerName.trim()) {
           handleJoin(code.toUpperCase());
         }
