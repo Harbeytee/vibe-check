@@ -1,6 +1,5 @@
 "use client";
-import React, { useState } from "react";
-import { Bug, Send, X } from "lucide-react";
+import { Bug, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,31 +11,22 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import useFeedback from "@/hooks/useFeedback";
 
-type FeedbackType = "bug" | "suggestion";
-
-const FeedbackButton: React.FC = () => {
-  const [open, setOpen] = useState(false);
-  const [type, setType] = useState<FeedbackType>("bug");
-  const [name, setName] = useState("");
-  const [message, setMessage] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
-
-    // submit to BE
-    console.log("Feedback submitted:", { type, name, message });
-
-    setSubmitted(true);
-    setTimeout(() => {
-      setOpen(false);
-      setSubmitted(false);
-      setName("");
-      setMessage("");
-    }, 1800);
-  };
+export default function FeedbackButton() {
+  const {
+    handleSubmit,
+    open,
+    setType,
+    submitted,
+    sending,
+    setOpen,
+    type,
+    setName,
+    setMessage,
+    message,
+    name,
+  } = useFeedback();
 
   return (
     <>
@@ -142,10 +132,10 @@ const FeedbackButton: React.FC = () => {
                   type="submit"
                   variant="glow"
                   className="w-full"
-                  disabled={!message.trim()}
+                  disabled={!message.trim() || sending}
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Submit Feedback
+                  {sending ? "Sending..." : "Submit Feedback"}
                 </Button>
               </motion.form>
             )}
@@ -154,6 +144,4 @@ const FeedbackButton: React.FC = () => {
       </Dialog>
     </>
   );
-};
-
-export default FeedbackButton;
+}
