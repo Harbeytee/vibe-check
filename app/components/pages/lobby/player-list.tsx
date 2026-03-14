@@ -1,4 +1,11 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Player } from "@/types/interface";
 import { motion } from "framer-motion";
@@ -92,31 +99,42 @@ export default function PlayerList({
               </motion.span>
             )}
 
-            {/* Kick button - only show for host, not for the host themselves */}
+            {/* Kick - only for host, not for the host themselves. */}
             {showKickButton &&
               !player.isHost &&
               onKick &&
               currentPlayer?.isHost && (
-                <>
-                  {/* Hover hint - visible by default, hidden on hover */}
-                  <span className="ml-2 text-xs text-muted-foreground z-50 opacity-60 group-hover:opacity-0 transition-opacity">
-                    •••
-                  </span>
-                  {/* Kick button - hidden by default, visible on hover */}
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="ml-2 text-xs gap-1 absolute cursor-pointer z-50 -right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
-                    aria-label={`Remove ${player.name} from the game`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onKick(String(player.id));
-                    }}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="ml-2 text-xs cursor-pointer text-muted-foreground z-50 opacity-60 hover:opacity-100 focus:opacity-100 focus:outline-none p-1 -m-1 rounded"
+                      aria-label={`Options for ${player.name}`}
+                    >
+                      •••
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-2"
+                    align="end"
+                    sideOffset={6}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
                   >
-                    <X className="w-3 h-3" aria-hidden="true" />
-                    <span>Kick</span>
-                  </Button>
-                </>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full text-xs gap-1"
+                      aria-label={`Remove ${player.name} from the game`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onKick(String(player.id));
+                      }}
+                    >
+                      <X className="w-3 h-3" aria-hidden="true" />
+                      <span>Kick</span>
+                    </Button>
+                  </PopoverContent>
+                </Popover>
               )}
           </motion.div>
         ))}
